@@ -1,6 +1,6 @@
 # Progress record
 
-Last update: 2026-11-04 (version 0.1.0, branch `claude/trusting-newton-8v5rwv`).
+Last update: 2026-11-04 (version 0.1.0, branch `main`).
 
 ## Completed
 
