@@ -90,7 +90,7 @@ def sha256_of(path: Path) -> str:
     files = sorted(path.glob("*.csv")) if path.is_dir() else [path]
     for f in files:
         with f.open("rb") as fh:
-            for chunk in iter(lambda fh=fh: fh.read(1024 * 1024), b""):
+            while chunk := fh.read(1024 * 1024):
                 digest.update(chunk)
     return digest.hexdigest()
 
@@ -251,8 +251,10 @@ class DocumentGenerationService:
     ) -> JobSession | None:
         reporter = reporter or NullReporter()
         cancel = cancel or CancellationToken()
-        result = result or JobResult(job_id, "running", _now())
-        collector = collector or IssueCollector()
+        if result is None:
+            result = JobResult(job_id, "running", _now())
+        if collector is None:
+            collector = IssueCollector()
         stage = timer or reporter.stage
         profile = request.profile
         unit_kind = request.unit or profile.generation.unit
@@ -328,6 +330,8 @@ class DocumentGenerationService:
             shutil.rmtree(snapshot_dir, ignore_errors=True)
             self._fatal(result, "workbook.open_failed", str(exc), Category.WORKBOOK)
             return None
+        # data is in memory now; the input snapshot is no longer needed
+        shutil.rmtree(snapshot_dir, ignore_errors=True)
         if fatal_issues(load.issues) or profile.excel.primary not in load.dataset.tables:
             shutil.rmtree(snapshot_dir, ignore_errors=True)
             if not any(i.severity is Severity.ERROR for i in result.issues):
@@ -444,7 +448,7 @@ class DocumentGenerationService:
 
     def _names(
         self, session: JobSession, ctx: dict[str, Any], unit: PlannedUnit, issues: list[Issue], job_id: str
-    ) -> tuple[str, Callable[[str], str]]:
+    ) -> tuple[str, Callable[..., str]]:
         profile = session.profile
         values = dict(ctx)
         values["profile"] = {
@@ -487,7 +491,7 @@ class DocumentGenerationService:
                 last += ".docx"
             return f"{head}/{last}" if head else last
 
-        return subfolder, filename  # type: ignore[return-value]
+        return subfolder, filename
 
     def _target(self, session: JobSession, subfolder: str, name: str, issues: list[Issue]) -> Path:
         base = session.request.output_dir / subfolder if subfolder else session.request.output_dir
@@ -711,7 +715,7 @@ class DocumentGenerationService:
                 )
             )
         for template_id, path in res.individual:
-            name = filename(profile.output.individual_filename, template_id)  # type: ignore[call-arg]
+            name = filename(profile.output.individual_filename, template_id)
             pairs.append((Path(path), self._target(session, subfolder, name, issues)))
         for temp, target in pairs:
             try:

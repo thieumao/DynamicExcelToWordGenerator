@@ -83,7 +83,7 @@ def build_xls(path: Path, sheets: Mapping[str, Sequence[Sequence[Any]]]) -> Path
     """Write an Excel 97-2003 .xls file (requires the dev dependency xlwt)."""
     import datetime as dt
 
-    import xlwt
+    import xlwt  # type: ignore[import-untyped]
 
     wb = xlwt.Workbook(encoding="utf-8")
     date_style = xlwt.easyxf(num_format_str="DD/MM/YYYY")

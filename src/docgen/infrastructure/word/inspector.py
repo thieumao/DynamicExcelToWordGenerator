@@ -254,5 +254,5 @@ def inspect_raw_text(data: bytes) -> str:
         for name in zf.namelist():
             if _PARTS.match(name):
                 root = etree.fromstring(zf.read(name), _PARSER)
-                texts.append("".join(root.itertext()))
+                texts.append("".join(str(t) for t in root.itertext()))
     return "\n".join(texts)

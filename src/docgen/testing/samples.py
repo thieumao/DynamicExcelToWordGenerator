@@ -17,6 +17,7 @@ import random
 from pathlib import Path
 
 from docx import Document
+from docx.document import Document as DocxDocument
 from docx.enum.section import WD_ORIENT
 from docx.shared import Mm, Pt
 
@@ -210,14 +211,14 @@ def customer_a_sheets(n_employees: int = 8, seed: int = 7) -> dict[str, list[lis
             )
     return {
         "Employees": employees,
-        "Departments": [["DepartmentID", "DepartmentName", "ManagerID"], *map(list, depts)],
-        "Positions": [["PositionID", "PositionName"], *map(list, positions)],
-        "Managers": [["ManagerID", "ManagerName"], *map(list, managers)],
+        "Departments": [["DepartmentID", "DepartmentName", "ManagerID"], *[list[object](d) for d in depts]],
+        "Positions": [["PositionID", "PositionName"], *[list[object](p) for p in positions]],
+        "Managers": [["ManagerID", "ManagerName"], *[list[object](m) for m in managers]],
         "Projects": projects,
     }
 
 
-def _style_document(doc: Document) -> None:
+def _style_document(doc: DocxDocument) -> None:
     normal = doc.styles["Normal"]
     normal.font.name = "Times New Roman"
     normal.font.size = Pt(12)

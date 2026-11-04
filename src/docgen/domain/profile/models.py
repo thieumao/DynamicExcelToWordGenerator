@@ -22,7 +22,7 @@ from pydantic import (
     model_validator,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION: Literal[1] = 1
 
 Identifier = Annotated[
     str, StringConstraints(pattern=r"^[A-Za-z_][A-Za-z0-9_]*$", min_length=1, max_length=64)
@@ -633,7 +633,9 @@ class Profile(_Model):
     def to_data(self) -> dict[str, Any]:
         """Serialisable dict using YAML-facing aliases ('from', 'if', 'else')."""
         data: dict[str, Any] = self.model_dump(mode="json", by_alias=True, exclude_none=False)
-        return _prune_defaults(data)
+        pruned = _prune_defaults(data)
+        assert isinstance(pruned, dict)
+        return pruned
 
 
 def _prune_defaults(data: Any) -> Any:

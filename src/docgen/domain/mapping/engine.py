@@ -59,7 +59,7 @@ class ImageRef:
 
 @dataclass(slots=True)
 class FieldTrace:
-    field: str
+    path: str
     kind: str
     sources: list[CellRef] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
@@ -68,7 +68,7 @@ class FieldTrace:
 
     def describe(self) -> str:
         src = ", ".join(str(s) for s in self.sources) or "-"
-        return f"{self.field} <- {self.kind} [{src}] " + " -> ".join(self.steps)
+        return f"{self.path} <- {self.kind} [{src}] " + " -> ".join(self.steps)
 
 
 @dataclass(slots=True)
@@ -189,6 +189,7 @@ class MappingEngine:
                 key = (table.sheet_name, table.row_numbers[ri], table.columns[ci].header)
                 self._invalid[key] = reason
         self._ordered_cache: dict[int, list[RuleNode]] = {}
+        self._expr_columns: dict[tuple[str, str], list[str]] = {}
         top: list[RuleNode] = [*profile.fields, *profile.collections, *profile.aggregations]
         self.top_rules, self.cycles = order_rules(top)
         self.group_rules, group_cycles = order_rules(list(profile.group_fields))
@@ -233,10 +234,7 @@ class MappingEngine:
         scope = _Scope(table, row_index, ctx, {"report": self.report}, self.primary_id)
         self._eval_rules(self.top_rules, scope, traces, issues, prefix="")
         excel_row = table.row_numbers[row_index]
-        issues = [
-            i.with_context(sheet=table.sheet_name, row=excel_row) if i.sheet is None else i for i in issues
-        ]
-        return RecordResult(row_index, excel_row, ctx, traces, issues)
+        return RecordResult(row_index, excel_row, ctx, traces, _dedupe(issues, table.sheet_name, excel_row))
 
     def map_group(
         self, key: tuple[Any, ...], records: Sequence[RecordResult], key_names: Sequence[str]
@@ -382,10 +380,15 @@ class MappingEngine:
                     return value
             return None
         if rule.expr is not None:
+            self._expression_sources(rule.expr, scope, sources)
             if trace is not None:
                 trace.steps.append(f"expr {rule.expr}")
             return self.expressions.compile(rule.expr)(scope.namespace())
         if rule.when is not None:
+            for clause in rule.when:
+                for text in (clause.if_, clause.expr):
+                    if text:
+                        self._expression_sources(text, scope, sources)
             ns = scope.namespace()
             for clause in rule.when:
                 if clause.is_else:
@@ -403,6 +406,22 @@ class MappingEngine:
                 trace.steps.append("when: no clause matched")
             return None
         return rule.const
+
+    def _expression_sources(self, source: str, scope: _Scope, sources: list[CellRef]) -> None:
+        """Record base-sheet cells read by an expression (traceability + untrusted checks)."""
+        columns = self._expr_columns.get((source, scope.base_name))
+        if columns is None:
+            columns = []
+            try:
+                for chain in expression_references(source):
+                    if len(chain) >= 2 and chain[0] in (scope.base_name, "item"):
+                        if scope.table.has_column(chain[1]) and chain[1] not in columns:
+                            columns.append(chain[1])
+            except ExpressionError:
+                pass
+            self._expr_columns[(source, scope.base_name)] = columns
+        for column in columns:
+            sources.append(scope.table.cell_ref(scope.row, column))
 
     def _column_value(
         self,
@@ -741,6 +760,21 @@ class MappingEngine:
             trace.value = value
             trace.steps.append(f"{len(rows)} row(s)")
         return value, trace
+
+
+def _dedupe(issues: list[Issue], sheet: str, row: int) -> list[Issue]:
+    """One lookup problem used by several fields is reported once per record."""
+    seen: set[tuple[Any, ...]] = set()
+    result = []
+    for issue in issues:
+        if issue.sheet is None:
+            issue = issue.with_context(sheet=sheet, row=row)
+        key = (issue.code, issue.rule, issue.sheet, issue.row, issue.message)
+        if issue.code.startswith("lookup.") and key in seen:
+            continue
+        seen.add(key)
+        result.append(issue)
+    return result
 
 
 def _lookup_item(item: Mapping[str, Any], table: SheetTable, row: int, key: str) -> Any:

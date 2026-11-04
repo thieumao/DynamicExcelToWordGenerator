@@ -12,6 +12,7 @@ import zlib
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from docx import Document
 from docx.enum.section import WD_ORIENT
@@ -100,7 +101,7 @@ def add_merge_field(paragraph: Paragraph, name: str, *, simple: bool = False, bo
         paragraph._p.append(fld)
         return
 
-    def new_run() -> OxmlElement:
+    def new_run() -> Any:
         r = OxmlElement("w:r")
         if bold:
             rpr = OxmlElement("w:rPr")

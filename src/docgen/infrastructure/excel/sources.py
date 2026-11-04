@@ -164,7 +164,7 @@ class XlsSource:
         sh = self._book.sheet_by_name(sheet)
         last = sh.nrows if max_row is None else min(max_row, sh.nrows)
         for r in range(min_row - 1, last):
-            values = []
+            values: list[Any] = []
             for c in range(sh.ncols):
                 cell = sh.cell(r, c)
                 ctype, value = cell.ctype, cell.value

@@ -69,12 +69,13 @@ def detect_header_row(
     if not candidates:
         return HeaderDetection(None, 0.0, [])
     best = max(candidates, key=lambda c: (c.score, -c.row))
-    total = sum(c.score for c in candidates) or 1.0
-    confidence = (
-        min(1.0, best.score / total)
-        if expected_norm == set()
-        else min(1.0, best.expected_hits / max(1, len(expected_norm)))
-    )
+    if expected_norm:
+        confidence = min(1.0, best.expected_hits / max(1, len(expected_norm)))
+    else:
+        # without expectations: how clearly the best row beats the runner-up
+        others = sorted((c.score for c in candidates if c is not best), reverse=True)
+        runner_up = others[0] if others else 0.0
+        confidence = best.score / (best.score + runner_up) if best.score > 0 else 0.0
     ranked = sorted(candidates, key=lambda c: (-c.score, c.row))[:5]
     return HeaderDetection(best.row, round(confidence, 3), ranked)
 
@@ -99,7 +100,7 @@ def combine_header_rows(
         filled.append(values)
     headers = []
     for col in range(width):
-        parts = []
+        parts: list[str] = []
         for row in filled:
             v = row[col]
             if not is_empty(v):

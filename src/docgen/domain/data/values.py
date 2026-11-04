@@ -32,6 +32,7 @@ EXCEL_ERROR_VALUES = frozenset(
         "#UNKNOWN!",
     }
 )
+CURRENCY_SYMBOLS = ("VNĐ", "VND", "₫", "đ", "$", "€", "%")
 _WS = re.compile(r"\s+")
 _XML_INVALID = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
 TRUE_WORDS = frozenset({"true", "yes", "y", "1", "x", "có", "co", "đúng", "dung", "t"})
@@ -80,7 +81,13 @@ def normalize_label(
 
 
 def sanitize_text(value: str) -> str:
-    """Remove characters that are invalid in XML 1.0 and normalise line endings."""
+    """NFC-normalise, remove characters invalid in XML 1.0 and normalise line endings.
+
+    NFC matters for Vietnamese: Windows-1258 files and macOS store tones as combining
+    marks ('a' + U+0303) while Excel normally stores precomposed letters ('ã').
+    """
+    if not value.isascii():
+        value = unicodedata.normalize("NFC", value)
     value = value.replace("\r\n", "\n").replace("\r", "\n")
     value = value.replace("_x000D_", "")
     return _XML_INVALID.sub("", value)
@@ -130,7 +137,7 @@ def to_decimal(value: Any, *, decimal_separator: str = ".", thousands_separator:
         text = value.strip().replace(" ", "").replace(" ", "")
         if not text:
             raise ConversionError("empty text")
-        for symbol in ("₫", "đ", "VND", "VNĐ", "$", "€", "%"):
+        for symbol in CURRENCY_SYMBOLS:
             text = text.replace(symbol, "")
         if thousands_separator:
             text = text.replace(thousands_separator, "")
@@ -150,6 +157,8 @@ def parse_localized_number(text: str, decimal_separator: str, thousands_separato
     thousands '.' is 1234 while '12.5' stays 12.5 for a profile using ',' as decimal.
     """
     t = text.strip().replace("\u00a0", "").replace(" ", "")
+    for symbol in CURRENCY_SYMBOLS:
+        t = t.replace(symbol, "")
     th, dec = re.escape(thousands_separator), re.escape(decimal_separator)
     if thousands_separator and re.fullmatch(rf"[+-]?\d{{1,3}}({th}\d{{3}})+({dec}\d+)?", t):
         return to_decimal(t, decimal_separator=decimal_separator, thousands_separator=thousands_separator)

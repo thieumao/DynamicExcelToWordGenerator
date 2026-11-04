@@ -129,8 +129,8 @@ class _SectionAwareComposer(Composer):  # type: ignore[misc]
 
         for el in element.iter():
             for attr, value in list(el.attrib.items()):
-                if attr.startswith(f"{{{R_NS}}}") and value in rid_map:
-                    el.set(attr, rid_map[value])
+                if str(attr).startswith(f"{{{R_NS}}}") and str(value) in rid_map:
+                    el.set(attr, rid_map[str(value)])
         # styles referenced inside header/footer must exist in the master
         self.add_styles(src_doc, element)
         result: str = self.doc.part.relate_to(new_part, src_rel.reltype)
