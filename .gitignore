@@ -20,3 +20,4 @@ Thumbs.db
 tests/fixtures/real/
 tools/ooxml-validator/bin/
 tools/ooxml-validator/obj/
+handoff/
