@@ -72,6 +72,7 @@ class XlsxSource:
             ) from exc
         except (zipfile.BadZipFile, KeyError, ValueError, OSError) as exc:
             raise WorkbookOpenError(f"Cannot open {path.name}: {exc}") from exc
+        self._members: dict[str, str] | None = None
 
     def sheets(self) -> list[SheetInfo]:
         result = []
@@ -91,13 +92,31 @@ class XlsxSource:
         yield from ws.iter_rows(min_row=min_row, max_row=max_row, values_only=True)
 
     def formula_cells(
-        self, sheet: str, columns: set[int], min_row: int, max_row: int | None
+        self, sheet: str, columns: set[int], min_row: int, max_row: int | None, *, need_text: bool = False
     ) -> dict[tuple[int, int], str]:
         """Return {(excel_row, col_index0): formula} for formula cells in *columns*.
 
-        This needs a second streaming pass with ``data_only=False`` because
-        openpyxl exposes either cached values or formulas, never both.
+        openpyxl exposes either cached values or formulas, never both, and re-opening the
+        workbook per sheet is slow, so formula *presence* is detected with one streaming
+        lxml pass over the sheet XML. Shared-formula children carry no text; their full
+        formula is only needed for the raw_formula policy (``need_text``), which then uses
+        openpyxl's formula translation.
         """
+        if need_text:
+            return self._formula_text_openpyxl(sheet, columns, min_row, max_row)
+        member = self._sheet_members().get(sheet)
+        if member is None:
+            return {}
+        return scan_formula_cells(self.path, member, columns, min_row, max_row)
+
+    def _sheet_members(self) -> dict[str, str]:
+        if self._members is None:
+            self._members = sheet_members(self.path)
+        return self._members
+
+    def _formula_text_openpyxl(
+        self, sheet: str, columns: set[int], min_row: int, max_row: int | None
+    ) -> dict[tuple[int, int], str]:
         from openpyxl import load_workbook
 
         found: dict[tuple[int, int], str] = {}
@@ -276,6 +295,100 @@ class CsvSource:
 
     def close(self) -> None:
         self._cache.clear()
+
+
+_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_PKG_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+
+
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def sheet_members(path: Path) -> dict[str, str]:
+    """Map sheet names to their ZIP member ('xl/worksheets/sheet1.xml')."""
+    import posixpath
+
+    from lxml import etree
+
+    parser = etree.XMLParser(resolve_entities=False, no_network=True)
+    with zipfile.ZipFile(path) as zf:
+        workbook = etree.fromstring(zf.read("xl/workbook.xml"), parser)
+        rels = etree.fromstring(zf.read("xl/_rels/workbook.xml.rels"), parser)
+    targets = {r.get("Id"): r.get("Target", "") for r in rels if _local(r.tag) == "Relationship"}
+    result: dict[str, str] = {}
+    for el in workbook.iter():
+        if _local(el.tag) != "sheet":
+            continue
+        rid = next((v for k, v in el.attrib.items() if _local(str(k)) == "id"), None)
+        target = targets.get(rid, "")
+        if not target:
+            continue
+        member = (
+            target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("xl", target))
+        )
+        result[el.get("name", "")] = member
+    return result
+
+
+def _split_ref(ref: str) -> tuple[int, int]:
+    """'AB12' -> (12, 27) as (row, 0-based column)."""
+    i = 0
+    while i < len(ref) and ref[i].isalpha():
+        i += 1
+    return int(ref[i:]), column_index(ref[:i])
+
+
+_F_TAG = re.compile(rb"<(?:\w+:)?f[ >/]")
+
+
+def _has_formula_tags(zf: zipfile.ZipFile, member: str) -> bool:
+    """Fast byte-level pre-check (C speed) for any <f> element in a worksheet part."""
+    tail = b""
+    with zf.open(member) as fh:
+        while chunk := fh.read(1 << 20):
+            if _F_TAG.search(tail + chunk):
+                return True
+            tail = chunk[-16:]
+    return False
+
+
+def scan_formula_cells(
+    path: Path, member: str, columns: set[int], min_row: int, max_row: int | None
+) -> dict[tuple[int, int], str]:
+    """Stream one worksheet part and return formula cells in *columns* (single pass, O(1) memory)."""
+    from lxml import etree
+
+    found: dict[tuple[int, int], str] = {}
+    with zipfile.ZipFile(path) as zf:
+        if not _has_formula_tags(zf, member):
+            return found  # common case: plain data sheets skip the XML parse entirely
+    with zipfile.ZipFile(path) as zf, zf.open(member) as fh:
+        for _event, el in etree.iterparse(
+            fh, events=("end",), resolve_entities=False, no_network=True, huge_tree=False
+        ):
+            name = _local(el.tag)
+            if name == "row":
+                row_attr = el.get("r")
+                el.clear()
+                while el.getprevious() is not None:
+                    del el.getparent()[0]
+                if row_attr and max_row is not None and int(row_attr) >= max_row:
+                    break
+                continue
+            if name != "c":
+                continue
+            ref = el.get("r")
+            if not ref:
+                continue
+            row, col = _split_ref(ref)
+            if row < min_row or (max_row is not None and row > max_row) or col not in columns:
+                continue
+            formula = next((child for child in el if _local(child.tag) == "f"), None)
+            if formula is not None:
+                text = formula.text or ""
+                found[(row, col)] = f"={text}" if text else "=(shared formula)"
+    return found
 
 
 def detect_format(path: Path) -> str:

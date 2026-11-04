@@ -1,0 +1,195 @@
+{
+  "machine": {
+    "os": "Linux 6.18.44-fc-v233",
+    "python": "3.12.3",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logical_cpus": 4,
+    "ram_gb": 16.9,
+    "date": "2026-11-04T16:43:15"
+  },
+  "results": [
+    {
+      "scenario": "R1",
+      "description": "1,000 rows, 5 lookup sheets (read + index + map)",
+      "status": "validated",
+      "seconds_total": 0.71,
+      "stage_seconds": {
+        "validate": 0.0,
+        "read_excel": 0.55,
+        "index": 0.02,
+        "map": 0.09
+      },
+      "peak_rss_mb": 61.0,
+      "python_heap_peak_mb": null,
+      "documents": 0,
+      "records": 1000,
+      "notes": [
+        "synthetic workbook written in 0.4s (not included)",
+        "workbook size 0.3 MB"
+      ]
+    },
+    {
+      "scenario": "R2",
+      "description": "10,000 rows, 5 lookup sheets",
+      "status": "validated",
+      "seconds_total": 2.69,
+      "stage_seconds": {
+        "validate": 0.0,
+        "read_excel": 1.59,
+        "index": 0.02,
+        "map": 1.03
+      },
+      "peak_rss_mb": 74.7,
+      "python_heap_peak_mb": null,
+      "documents": 0,
+      "records": 10000,
+      "notes": [
+        "synthetic workbook written in 1.3s (not included)",
+        "workbook size 0.8 MB"
+      ]
+    },
+    {
+      "scenario": "R4",
+      "description": "10,000 rows, 20 lookup sheets",
+      "status": "validated",
+      "seconds_total": 7.36,
+      "stage_seconds": {
+        "validate": 0.0,
+        "read_excel": 4.59,
+        "index": 0.12,
+        "map": 2.59
+      },
+      "peak_rss_mb": 107.4,
+      "python_heap_peak_mb": null,
+      "documents": 0,
+      "records": 10000,
+      "notes": [
+        "synthetic workbook written in 3.5s (not included)",
+        "workbook size 2.2 MB"
+      ]
+    },
+    {
+      "scenario": "G1",
+      "description": "100 merged documents x 10 templates, 1 worker",
+      "status": "completed",
+      "seconds_total": 50.71,
+      "stage_seconds": {
+        "validate": 0.04,
+        "read_excel": 0.47,
+        "index": 0.02,
+        "map": 0.01,
+        "generate": 50.12
+      },
+      "peak_rss_mb": 446.7,
+      "python_heap_peak_mb": null,
+      "documents": 100,
+      "records": 100,
+      "notes": [
+        "synthetic workbook written in 0.3s (not included)",
+        "workbook size 0.2 MB"
+      ]
+    },
+    {
+      "scenario": "G2",
+      "description": "100 merged documents x 10 templates, 3 worker processes",
+      "status": "completed",
+      "seconds_total": 18.75,
+      "stage_seconds": {
+        "validate": 0.03,
+        "read_excel": 0.41,
+        "index": 0.02,
+        "map": 0.01,
+        "generate": 18.21
+      },
+      "peak_rss_mb": 1085.8,
+      "python_heap_peak_mb": null,
+      "documents": 100,
+      "records": 100,
+      "notes": [
+        "synthetic workbook written in 0.4s (not included)",
+        "workbook size 0.2 MB"
+      ]
+    },
+    {
+      "scenario": "R3",
+      "description": "100,000 rows, 5 lookup sheets",
+      "status": "validated",
+      "seconds_total": 23.35,
+      "stage_seconds": {
+        "validate": 0.0,
+        "read_excel": 12.79,
+        "index": 0.02,
+        "map": 10.47
+      },
+      "peak_rss_mb": 537.1,
+      "python_heap_peak_mb": null,
+      "documents": 0,
+      "records": 100000,
+      "notes": [
+        "synthetic workbook written in 10.7s (not included)",
+        "workbook size 5.9 MB"
+      ]
+    },
+    {
+      "scenario": "R3s",
+      "description": "100,000 rows, 5 lookup sheets, formula check skipped",
+      "status": "validated",
+      "seconds_total": 21.73,
+      "stage_seconds": {
+        "validate": 0.0,
+        "read_excel": 11.25,
+        "index": 0.05,
+        "map": 10.35
+      },
+      "peak_rss_mb": 537.8,
+      "python_heap_peak_mb": null,
+      "documents": 0,
+      "records": 100000,
+      "notes": [
+        "synthetic workbook written in 9.9s (not included)",
+        "workbook size 5.9 MB"
+      ]
+    },
+    {
+      "scenario": "R5",
+      "description": "100,000 rows, 20 lookup sheets",
+      "status": "validated",
+      "seconds_total": 60.71,
+      "stage_seconds": {
+        "validate": 0.0,
+        "read_excel": 32.27,
+        "index": 0.1,
+        "map": 28.22
+      },
+      "peak_rss_mb": 635.4,
+      "python_heap_peak_mb": null,
+      "documents": 0,
+      "records": 100000,
+      "notes": [
+        "synthetic workbook written in 25.9s (not included)",
+        "workbook size 14.7 MB"
+      ]
+    },
+    {
+      "scenario": "G3",
+      "description": "1,000 merged documents x 3 templates, 3 worker processes",
+      "status": "completed",
+      "seconds_total": 54.35,
+      "stage_seconds": {
+        "validate": 0.01,
+        "read_excel": 0.54,
+        "index": 0.02,
+        "map": 0.1,
+        "generate": 53.33
+      },
+      "peak_rss_mb": 1593.5,
+      "python_heap_peak_mb": null,
+      "documents": 1000,
+      "records": 1000,
+      "notes": [
+        "synthetic workbook written in 0.4s (not included)",
+        "workbook size 0.3 MB"
+      ]
+    }
+  ]
+}

@@ -47,6 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     window = MainWindow(state)
     window.show()
     args = (argv if argv is not None else sys.argv)[1:]
+    if "--smoke-test" in args:
+        # packaging check: start, show the main window, then quit cleanly
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(1500, app.quit)
+        args = [a for a in args if a != "--smoke-test"]
     if args and Path(args[0]).suffix.lower() in (".xlsx", ".xlsm", ".xls", ".csv"):
         excel = window.pages["excel"]
         excel.set_excel(Path(args[0]))  # type: ignore[attr-defined]

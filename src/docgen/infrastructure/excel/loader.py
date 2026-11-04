@@ -25,6 +25,7 @@ from docgen.infrastructure.excel.header_detect import combine_header_rows, detec
 from docgen.infrastructure.excel.sources import (
     SheetInfo,
     WorkbookSource,
+    XlsxSource,
     column_index,
     column_letter,
     open_workbook,
@@ -430,7 +431,12 @@ class WorkbookLoader:
             return
         columns = {b.index for b in table.columns if b.index is not None}
         first, last = table.row_numbers[0], table.row_numbers[-1]
-        formulas = source.formula_cells(table.sheet_name, columns, first, last)
+        if isinstance(source, XlsxSource):
+            formulas = source.formula_cells(
+                table.sheet_name, columns, first, last, need_text=policy is FormulaPolicy.RAW_FORMULA
+            )
+        else:
+            formulas = source.formula_cells(table.sheet_name, columns, first, last)
         if not formulas:
             return
         if self._full_calc and not self._full_calc_reported and policy is not FormulaPolicy.RAW_FORMULA:

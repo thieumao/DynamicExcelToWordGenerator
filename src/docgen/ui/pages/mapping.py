@@ -368,7 +368,9 @@ class FieldEditor(QWidget):
             if clause.is_else:
                 self.else_value.setText("" if clause.else_ is None else str(clause.else_))
             else:
-                self._when_row(clause.if_ or "", (clause.expr and f"={clause.expr}") or str(clause.value or ""))
+                self._when_row(
+                    clause.if_ or "", (clause.expr and f"={clause.expr}") or str(clause.value or "")
+                )
         self.coalesce.setText(", ".join(rule.coalesce or ()))
         self.const.setText("" if rule.const is None else str(rule.const))
         self.type.setCurrentText(rule.type.value)

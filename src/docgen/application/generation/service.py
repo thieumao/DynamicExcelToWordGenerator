@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import logging
 import multiprocessing
 import os
 import shutil
@@ -79,6 +80,8 @@ FATAL_CATEGORIES = {
     Category.EXPRESSION,
 }
 POOL_THRESHOLD = 20
+LOG = logging.getLogger("docgen.job")
+WORKER_RECYCLE_UNITS = 50
 
 
 def _now() -> str:
@@ -185,6 +188,15 @@ class DocumentGenerationService:
         )
         session: JobSession | None = None
         temp_dir = request.output_dir / f".docgen-tmp-{job_id}"
+        # log metadata only (never cell values): ids, counts, durations, file names
+        LOG.info(
+            "job %s started: profile=%s v%s input=%s dry_run=%s",
+            job_id,
+            profile.profile.id,
+            profile.profile.version,
+            request.excel_path.name,
+            request.dry_run,
+        )
         try:
             session = self.prepare(
                 request, reporter, cancel, job_id=job_id, result=result, timer=timer, collector=collector
@@ -221,6 +233,16 @@ class DocumentGenerationService:
                 shutil.rmtree(session.snapshot_dir, ignore_errors=True)
             shutil.rmtree(temp_dir, ignore_errors=True)
             result.finished = _now()
+            LOG.info(
+                "job %s %s: units=%d documents=%d errors=%d warnings=%d stages=%s",
+                job_id,
+                result.status,
+                len(result.units),
+                len(result.documents),
+                result.error_count,
+                result.warning_count,
+                {k: round(v, 2) for k, v in result.stage_seconds.items()},
+            )
             if profile.output.write_audit and not request.dry_run and result.status != "running":
                 try:
                     audit, report = write_audit(result, request.output_dir)
@@ -643,7 +665,11 @@ class DocumentGenerationService:
                 stop = True
 
         jobs = self._build_jobs(session, runnable, temp_dir, outcomes, result.job_id)
-        use_pool = workers > 1 and len(runnable) >= self.pool_threshold
+        # Large jobs always render in worker processes (even with one worker): native memory
+        # used by lxml/docxcompose while merging is not fully returned to the OS (~1 MB per merge
+        # measured), so workers are recycled every WORKER_RECYCLE_UNITS units and the UI/CLI
+        # process stays small. Small jobs render in-process to avoid process start-up cost.
+        use_pool = len(runnable) >= self.pool_threshold
         if not use_pool:
             for job, ctx in jobs:
                 if cancel.cancelled or stop:
@@ -653,7 +679,9 @@ class DocumentGenerationService:
         else:
             mp = multiprocessing.get_context("spawn")
             in_flight: dict[Future[UnitJobResult], int] = {}
-            with ProcessPoolExecutor(max_workers=workers, mp_context=mp) as pool:
+            with ProcessPoolExecutor(
+                max_workers=workers, mp_context=mp, max_tasks_per_child=WORKER_RECYCLE_UNITS
+            ) as pool:
                 exhausted = False
                 while True:
                     while (

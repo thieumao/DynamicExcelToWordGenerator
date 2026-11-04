@@ -1,0 +1,54 @@
+{
+  "machine": {
+    "os": "Linux 6.18.44-fc-v233",
+    "python": "3.12.3",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logical_cpus": 4,
+    "ram_gb": 16.9,
+    "date": "2026-11-04T17:02:10"
+  },
+  "results": [
+    {
+      "scenario": "G1",
+      "description": "100 merged documents x 10 templates, 1 worker",
+      "status": "completed",
+      "seconds_total": 52.64,
+      "stage_seconds": {
+        "validate": 0.03,
+        "read_excel": 0.53,
+        "index": 0.02,
+        "map": 0.01,
+        "generate": 51.95
+      },
+      "peak_rss_mb": 380.5,
+      "python_heap_peak_mb": null,
+      "documents": 100,
+      "records": 100,
+      "notes": [
+        "synthetic workbook written in 0.3s (not included)",
+        "workbook size 0.2 MB"
+      ]
+    },
+    {
+      "scenario": "G3",
+      "description": "1,000 merged documents x 3 templates, 3 worker processes",
+      "status": "completed",
+      "seconds_total": 59.16,
+      "stage_seconds": {
+        "validate": 0.01,
+        "read_excel": 0.53,
+        "index": 0.04,
+        "map": 0.1,
+        "generate": 58.12
+      },
+      "peak_rss_mb": 726.1,
+      "python_heap_peak_mb": null,
+      "documents": 1000,
+      "records": 1000,
+      "notes": [
+        "synthetic workbook written in 0.4s (not included)",
+        "workbook size 0.3 MB"
+      ]
+    }
+  ]
+}

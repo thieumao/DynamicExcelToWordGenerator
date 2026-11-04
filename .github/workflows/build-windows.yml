@@ -1,0 +1,39 @@
+name: Build Windows
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["main", "claude/**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync --extra gui --group build --python 3.12
+      - name: Test before packaging
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest -q -m "not libreoffice"
+      - name: PyInstaller (onedir)
+        run: uv run pyinstaller packaging/docgen.spec --noconfirm --clean
+      - name: Smoke test the built executables
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run python packaging/smoke_test.py dist/DocGen
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/DocGen -DestinationPath DocGen-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DocGen-windows-x64
+          path: DocGen-windows-x64.zip
+          retention-days: 30

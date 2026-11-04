@@ -38,16 +38,57 @@ def build_xlsx(
     return path
 
 
-def build_xlsx_streaming(path: Path, sheets: Mapping[str, Any]) -> Path:
-    """Write large sheets with openpyxl's write-only mode. Values may be generators of rows."""
+def build_xlsx_streaming(path: Path, sheets: Mapping[str, Any], *, add_dimension: bool = True) -> Path:
+    """Write large sheets with openpyxl's write-only mode. Values may be generators of rows.
+
+    openpyxl's write-only mode omits ``<dimension>``, which Excel always writes; without it
+    openpyxl's read-only reader scans every sheet when opening the file. ``add_dimension``
+    restores it so benchmarks reflect files saved by Excel.
+    """
     wb = Workbook(write_only=True)
+    sizes: dict[str, tuple[int, int]] = {}
     for name, rows in sheets.items():
         ws = wb.create_sheet(title=name)
+        count = width = 0
         for row in rows:
-            ws.append(list(row))
+            values = list(row)
+            ws.append(values)
+            count += 1
+            width = max(width, len(values))
+        sizes[name] = (count, width)
     path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(str(path))
+    if add_dimension:
+        _add_dimensions(path, [sizes[n] for n in sheets])
     return path
+
+
+def _add_dimensions(path: Path, sizes: Sequence[tuple[int, int]]) -> None:
+    from docgen.infrastructure.excel.sources import column_letter
+
+    tmp_dir = Path(tempfile.mkdtemp())
+    try:
+        tmp = tmp_dir / "out.xlsx"
+        with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                m = re.fullmatch(r"xl/worksheets/sheet(\d+)\.xml", item.filename)
+                if m and int(m.group(1)) <= len(sizes):
+                    rows, cols = sizes[int(m.group(1)) - 1]
+                    ref = f"A1:{column_letter(max(cols, 1) - 1)}{max(rows, 1)}"
+                    xml = data.decode("utf-8")
+                    if "<dimension" not in xml:
+                        end_pr = xml.find("</sheetPr>")
+                        if end_pr >= 0:
+                            pos = end_pr + len("</sheetPr>")
+                        else:
+                            pos = xml.index(">", xml.index("<worksheet")) + 1
+                        xml = xml[:pos] + f'<dimension ref="{ref}"/>' + xml[pos:]
+                        data = xml.encode("utf-8")
+                zout.writestr(item, data)
+        shutil.move(str(tmp), str(path))
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def inject_cached_values(path: Path, sheet_index: int, values: Mapping[str, Any]) -> None:
