@@ -19,6 +19,8 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
         cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600, **kwargs
     )
     print(result.stdout[-3000:])
+    if result.stderr.strip() and result.returncode == 0:
+        print(result.stderr[-1000:])
     if result.returncode != 0:
         print(result.stderr[-3000:])
         raise SystemExit(f"command failed with exit code {result.returncode}")
@@ -80,6 +82,7 @@ def main() -> int:
         ]
     )
     assert len(list((work / "out_b").rglob("*.docx"))) == 9
+    validate_outputs([work / "out_a", work / "out_b"], work)
     env = dict(
         os.environ,
         QT_QPA_PLATFORM=os.environ.get("QT_QPA_PLATFORM", "offscreen"),

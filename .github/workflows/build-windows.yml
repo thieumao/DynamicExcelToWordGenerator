@@ -32,6 +32,7 @@ jobs:
       - name: Smoke test the built executables
         env:
           QT_QPA_PLATFORM: offscreen
+          DOCGEN_REQUIRE_OOXML: "1"
         run: uv run python packaging/smoke_test.py dist/DocGen
       - name: Zip
         shell: pwsh
