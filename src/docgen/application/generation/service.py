@@ -66,6 +66,7 @@ from docgen.infrastructure.fs.atomic import (
     finalize,
 )
 from docgen.infrastructure.fs.safety import UnsafeFileError
+from docgen.infrastructure.word.markers import leftover_patterns
 
 FATAL_CATEGORIES = {
     Category.CONFIG,
@@ -575,6 +576,10 @@ class DocumentGenerationService:
                         s.start,
                         s.restart_page_numbering,
                         s.inherit_missing_headers,
+                        leftover_patterns(
+                            tpl.spec.marker.style.value, tpl.spec.marker.open, tpl.spec.marker.close
+                        ),
+                        tpl.spec.marker.style.value == "mergefield",
                     )
                 )
                 contexts.append(self.template_context(tpl, ctx))

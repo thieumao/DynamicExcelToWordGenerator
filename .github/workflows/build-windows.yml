@@ -17,11 +17,15 @@ jobs:
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
       - name: Install
         run: uv sync --extra gui --group build --python 3.12
       - name: Test before packaging
         env:
           QT_QPA_PLATFORM: offscreen
+          DOCGEN_REQUIRE_OOXML: "1"
         run: uv run pytest -q -m "not libreoffice"
       - name: PyInstaller (onedir)
         run: uv run pyinstaller packaging/docgen.spec --noconfirm --clean

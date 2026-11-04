@@ -99,7 +99,9 @@ def _set_text(node: etree._Element, text: str) -> None:
 
 
 # ----------------------------------------------------------------- custom
-def convert_custom_markers(data: bytes, open_mark: str, close_mark: str) -> ConversionResult:
+def convert_custom_markers(
+    data: bytes, open_mark: str, close_mark: str, *, skip: Callable[[str], bool] | None = None
+) -> ConversionResult:
     pattern = re.compile(re.escape(open_mark) + r"\s*(.+?)\s*" + re.escape(close_mark), re.DOTALL)
 
     def handle(root: etree._Element, part: str, result: ConversionResult) -> bool:
@@ -128,6 +130,8 @@ def convert_custom_markers(data: bytes, open_mark: str, close_mark: str) -> Conv
 
             for m in reversed(matches):
                 name = m.group(1).strip()
+                if skip is not None and skip(name):
+                    continue
                 if not _valid_name(name):
                     result.problems.append(f"{part}: unsupported characters in marker {m.group(0)!r}")
                     continue
@@ -253,7 +257,29 @@ def convert_mergefields(data: bytes) -> ConversionResult:
                 changed = True
         return changed
 
-    return _rewrite_parts(data, handle)
+    fields = _rewrite_parts(data, handle)
+    # Editors such as LibreOffice flatten unbound mail-merge fields into plain text that only shows
+    # the field result («Name»). Treat that visible form as a placeholder too, otherwise it would be
+    # copied to every output unchanged.
+    flattened = convert_custom_markers(
+        fields.data, "«", "»", skip=lambda n: n.lower().startswith(("tablestart:", "tableend:"))
+    )
+    fields.data = flattened.data
+    fields.hits.extend(MarkerHit(h.name, h.part, "mergefield-text") for h in flattened.hits)
+    fields.problems.extend(flattened.problems)
+    return fields
+
+
+DEFAULT_LEFTOVER_PATTERNS = (r"\{\{.*?\}\}", r"\{%.*?%\}")
+
+
+def leftover_patterns(style: str, open_mark: str = "<<", close_mark: str = ">>") -> tuple[str, ...]:
+    """Regexes (text) that must not survive rendering for a template using *style* markers."""
+    if style == "custom":
+        return (re.escape(open_mark) + r".+?" + re.escape(close_mark),)
+    if style == "mergefield":
+        return (r"«[^»]{1,100}»",)
+    return ()
 
 
 def find_custom_markers(data: bytes, open_mark: str, close_mark: str) -> list[MarkerHit]:

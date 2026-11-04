@@ -18,3 +18,5 @@ Thumbs.db
 /output/
 /benchmarks/results/*.tmp
 tests/fixtures/real/
+tools/ooxml-validator/bin/
+tools/ooxml-validator/obj/

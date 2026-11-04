@@ -16,10 +16,12 @@ packaging workflow re-runs it before building and smoke-tests the built executab
 | Unit – files | `tests/unit/test_files.py` | Filename patterns, Windows reserved names, long names, path traversal, conflict policies (suffix/skip/error/overwrite/reserved), zip-bomb detection. |
 | PoC – merging | `tests/poc/test_merge_poc.py` | Section/header/footer preservation, inheritance options, section breaks, page-number restart; optional LibreOffice rendering check (page count, per-page headers, numbering restart). |
 | Regression – formatting | `tests/regression/test_formatting_preservation.py` | Template vs output: fonts, run formatting, styles, tables, merged cells, numbering, images, header images, page breaks, section layout, fields, hyperlinks; and after merging two rendered documents. |
+| Regression – Office conformance | `tests/regression/test_ooxml_conformance.py`, `tools/ooxml-validator/` | All outputs of customers A and B (separate + merged) and the rich template in `preserve`/`section`/`inherit` merges are validated with **Microsoft's Open XML SDK `OpenXmlValidator`** (DocumentFormat.OpenXml 3.4.1) against Office 2010, Office 2019 and Microsoft 365 – 0 errors required. Needs the .NET 8 SDK (preinstalled on GitHub runners; CI sets `DOCGEN_REQUIRE_OOXML=1` so it cannot be skipped there). |
+| Regression – other editors | `tests/regression/test_libreoffice_templates.py` | Sample templates re-saved by LibreOffice (docx → odt → docx, different OOXML producer) still generate complete documents; unbound MERGEFIELDs flattened to `«Name»` text by the editor are filled. |
 | Integration | `tests/integration/test_pipeline.py`, `test_cli.py` | Excel → mapping → context → Word for modes A–E; customer B with the same code; process pool; no overwrite; cancellation (no partial/temp files); collect vs fail-fast; error location; dry run; missing template; unknown placeholder caught before generation; inputs unchanged (hash); unwritable output; CLI commands. |
 | UI | `tests/ui/test_ui.py` (pytest-qt) | All pages render; mapping designer builds a lookup chain + transform and tests it on a record; generation from the UI with **event-loop heartbeat** (max stall asserted < 0.5 s while 30 merged documents are produced); cancel from the UI; Vietnamese catalog. |
 | Architecture | `tests/test_architecture.py` | Core layers do not import Qt; domain does not import infrastructure; no `eval`/`exec`. |
-| Packaging | `packaging/smoke_test.py` | Built `docgen-cli.exe`: version, sample generation, profile validation, 25-document batch through the process pool inside the frozen app, customer B; `DocGen.exe --smoke-test` starts and quits. |
+| Packaging | `packaging/smoke_test.py` | Built `docgen-cli.exe`: version, sample generation, profile validation, 25-document batch through the process pool inside the frozen app, customer B, Open XML SDK validation of the frozen app's outputs; `DocGen.exe --smoke-test` starts and quits. |
 
 Fixtures are **synthetic and generated in code** (`src/docgen/testing/`): workbooks via openpyxl/xlwt
 (plus an XML patch that inserts cached formula results as Excel does), documents via python-docx with
@@ -54,8 +56,11 @@ Synthetic fixtures do not prove compatibility with every customer file. For each
 
 ## What has *not* been tested yet (honest status)
 
-* Opening outputs in Microsoft Word (no Word in the development container) – LibreOffice rendering
-  and structural checks were used instead.
+* Opening outputs in Microsoft Word itself (no Word in the development container). Substitutes in
+  place: Microsoft's Open XML SDK validator (0 errors for Office 2010/2019/365 on every generated
+  file), LibreOffice rendering, structural verification. Validation against Office 2007 reports only
+  `w:tblLook` attributes (`firstRow`, `noHBand`, …) that python-docx's default template – and Word
+  2010+ itself – writes; Word 2007 is not a target.
 * Real customer files (none provided yet).
 * The Windows executable on a physical Windows 10/11 machine: the workflow builds and smoke-tests it
   on GitHub's `windows-latest` runner once the repository can be pushed.

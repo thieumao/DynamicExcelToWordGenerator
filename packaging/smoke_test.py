@@ -6,6 +6,7 @@ Usage: python packaging/smoke_test.py dist/DocGen
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,6 +23,20 @@ def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
         print(result.stderr[-3000:])
         raise SystemExit(f"command failed with exit code {result.returncode}")
     return result
+
+
+def validate_outputs(folders: list[Path], work: Path) -> None:
+    """Validate documents produced by the *frozen* app with Microsoft's Open XML SDK (if dotnet exists)."""
+    if shutil.which("dotnet") is None:
+        if os.environ.get("DOCGEN_REQUIRE_OOXML") == "1":
+            raise SystemExit("dotnet required for OOXML validation")
+        print("dotnet not found: skipping OOXML validation")
+        return
+    project = Path(__file__).resolve().parents[1] / "tools" / "ooxml-validator"
+    out = work / "ooxmlval"
+    run(["dotnet", "build", str(project), "-c", "Release", "-o", str(out)])
+    for fmt in ("Office2010", "Office2019"):
+        run(["dotnet", str(out / "OoxmlValidator.dll"), "--format", fmt, *map(str, folders)])
 
 
 def main() -> int:

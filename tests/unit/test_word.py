@@ -228,3 +228,32 @@ def test_verifier_detects_problems(tmp_path):
                 data = data.replace(b"styles.xml", b"missing.xml")
             zout.writestr(item, data)
     assert any("Broken relationship" in p for p in verify_docx(broken).problems)
+
+
+def test_flattened_mergefields_are_converted():
+    """LibreOffice (and copy/paste) turn unbound MERGEFIELDs into plain «Name» text."""
+
+    def build(doc):
+        p = doc.add_paragraph("Hợp đồng: ")
+        add_merge_field(p, "So_HD")
+        doc.add_paragraph("Ngày ký: «ngay_ky»")
+
+    result = convert_mergefields(docx_bytes(build))
+    assert set(result.names) == {"So_HD", "ngay_ky"}
+    assert texts(result.data)[:2] == ['Hợp đồng: {{ b["So_HD"] }}', 'Ngày ký: {{ b["ngay_ky"] }}']
+
+
+def test_verifier_flags_style_specific_leftovers(tmp_path):
+    from docgen.infrastructure.word.markers import leftover_patterns
+
+    path = tmp_path / "x.docx"
+    path.write_bytes(
+        docx_bytes(
+            lambda d: (d.add_paragraph("A «Ten» B <<Ma>>"), add_merge_field(d.add_paragraph(), "Code"))
+        )
+    )
+    assert verify_docx(path).ok  # jinja-only checks
+    merge = verify_docx(path, extra_patterns=leftover_patterns("mergefield"), forbid_mergefields=True)
+    assert not merge.ok and any("MERGEFIELD" in m for _, m in merge.leftover_markers)
+    custom = verify_docx(path, extra_patterns=leftover_patterns("custom", "<<", ">>"))
+    assert [m for _, m in custom.leftover_markers] == ["<<Ma>>"]

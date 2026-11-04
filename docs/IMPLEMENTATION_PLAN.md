@@ -67,7 +67,7 @@ Remaining work is tracked in [PROGRESS.md](PROGRESS.md).
 | Errors clearly reported | Issue model with location + suggestion; Logs page; audit CSV/JSON |
 | Customer configurations saved and reused | Profile repository with history; samples A and B |
 | Core works on macOS and Windows; Windows executable | CI matrix; `build-windows.yml` + smoke test (needs push access to run) |
-| Automated tests pass for supported features | 160+ tests passing locally |
+| Automated tests pass for supported features | 166 tests passing locally, incl. Open XML SDK conformance |
 
 ## Risks
 

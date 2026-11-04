@@ -109,6 +109,18 @@ def prepare_template(
             make_issue("template.marker", Severity.WARNING, Category.TEMPLATE, warning, template=spec.id)
         )
 
+    if not inspection.refs and not inspection.errors:
+        issues.append(
+            make_issue(
+                "template.no_placeholders",
+                Severity.WARNING,
+                Category.TEMPLATE,
+                f"Template '{spec.id}' contains no placeholders for marker style "
+                f"'{spec.marker.style.value}'; it will be copied without data",
+                suggestion="Check the marker style (jinja / custom / mergefield) and delimiters.",
+                template=spec.id,
+            )
+        )
     schema = schema or build_schema(profile, unit)
     prepared = PreparedTemplate(spec, path, converted.data, inspection)
     severity = {

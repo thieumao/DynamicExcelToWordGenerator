@@ -53,8 +53,11 @@ def verify_docx(
         re.compile(r"\{%.*?%\}"),
     ),
     check_reopen: bool = True,
+    extra_patterns: Sequence[str] = (),
+    forbid_mergefields: bool = False,
 ) -> VerificationResult:
     result = VerificationResult(path=path)
+    patterns = list(marker_patterns) + [re.compile(p) for p in extra_patterns]
     try:
         zf = zipfile.ZipFile(path)
     except (zipfile.BadZipFile, OSError) as exc:
@@ -100,9 +103,17 @@ def verify_docx(
                 continue
             doc_pr_ids.extend(el.get("id", "") for el in root.iter(f"{{{WP_NS}}}docPr"))
             for text in _paragraph_texts(data):
-                for pattern in marker_patterns:
+                for pattern in patterns:
                     for match in pattern.finditer(text):
                         result.leftover_markers.append((name, match.group(0)))
+            if forbid_mergefields:
+                for el in root.iter(f"{{{W_NS}}}instrText"):
+                    if el.text and "MERGEFIELD" in el.text.upper():
+                        result.leftover_markers.append((name, el.text.strip()))
+                for el in root.iter(f"{{{W_NS}}}fldSimple"):
+                    instr = el.get(f"{{{W_NS}}}instr", "")
+                    if "MERGEFIELD" in instr.upper():
+                        result.leftover_markers.append((name, instr.strip()))
         dupes = {i for i in doc_pr_ids if doc_pr_ids.count(i) > 1}
         if dupes:
             result.warnings.append(f"Duplicate drawing ids: {sorted(dupes)[:5]}")

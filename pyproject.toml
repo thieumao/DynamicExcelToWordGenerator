@@ -88,5 +88,6 @@ markers = [
     "slow: long-running tests (benchmarks, large fixtures)",
     "libreoffice: requires LibreOffice (soffice) on PATH",
     "ui: requires PySide6",
+    "ooxml: validates outputs with the .NET Open XML SDK (needs dotnet)",
 ]
 qt_api = "pyside6"

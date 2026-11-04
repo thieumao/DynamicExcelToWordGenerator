@@ -32,6 +32,8 @@ class TemplateJob:
     section_start: str
     restart_page_numbering: bool
     inherit_missing_headers: bool
+    leftover_patterns: tuple[str, ...] = ()
+    forbid_mergefields: bool = False
 
 
 @dataclass(slots=True)
@@ -117,7 +119,7 @@ def render_unit(job: UnitJob) -> UnitJobResult:
             result.failed = True
             continue
         if job.verify and not job.want_merged:
-            _verify(out, result, tjob.template_id)
+            _verify(out, result, tjob.template_id, (tjob,))
         rendered.append((tjob, out))
     if result.failed:
         result.seconds = time.perf_counter() - start
@@ -164,17 +166,23 @@ def render_unit(job: UnitJob) -> UnitJobResult:
                 result.seconds = time.perf_counter() - start
                 return result
         if job.verify:
-            _verify(merged, result, None)
+            _verify(merged, result, None, tuple(t for t, _ in rendered))
         result.merged = str(merged)
         if job.verify and job.want_individual:
+            by_id = {t.template_id: t for t, _ in rendered}
             for tid, path in result.individual:
-                _verify(Path(path), result, tid)
+                _verify(Path(path), result, tid, (by_id[tid],))
     result.seconds = time.perf_counter() - start
     return result
 
 
-def _verify(path: Path, result: UnitJobResult, template_id: str | None) -> None:
-    check = verify_docx(path)
+def _verify(
+    path: Path, result: UnitJobResult, template_id: str | None, templates: tuple[TemplateJob, ...]
+) -> None:
+    extra = tuple(dict.fromkeys(p for t in templates for p in t.leftover_patterns))
+    check = verify_docx(
+        path, extra_patterns=extra, forbid_mergefields=any(t.forbid_mergefields for t in templates)
+    )
     for problem in check.problems:
         result.issues.append(
             make_issue(

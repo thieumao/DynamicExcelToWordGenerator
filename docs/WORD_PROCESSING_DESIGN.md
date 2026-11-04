@@ -112,6 +112,32 @@ numbered list and a custom style) merged in `preserve` mode:
 The same test file covers `inherit` mode (single section, first header, orientation warning) and
 section breaks with restarted numbering.
 
+### Office conformance (Microsoft Open XML SDK)
+
+`tools/ooxml-validator` wraps `DocumentFormat.OpenXml` 3.4.1's `OpenXmlValidator` (schema and
+semantic rules Microsoft uses for Office documents). Results on 2026-11-04 for 42 files (all
+templates, every output of customers A and B in `separate` + `merged` mode, the rich regression
+template merged in `preserve`, `section` and `inherit` mode):
+
+| Target | Errors |
+|---|---|
+| Office 2010 | 0 |
+| Office 2019 | 0 |
+| Microsoft 365 | 0 |
+| Office 2007 | only `w:tblLook` 2010+ attributes coming from python-docx's default template (not produced by DocGen; Word 2007 is not a target) |
+
+Outputs of the PyInstaller-built application are validated the same way in the packaging smoke test.
+
+### Templates saved by other editors (finding and fix)
+
+Re-saving the sample templates in LibreOffice (docx → odt → docx) showed that unbound MERGEFIELDs are
+**flattened to plain text `«Name»`**. Before the fix these markers were silently copied into the
+outputs. Now, in `mergefield` mode, both real fields and their visible `«Name»` form are converted,
+templates without any placeholder produce a warning, and output verification checks style-specific
+leftovers (`«…»` and `MERGEFIELD` instructions for mergefield templates, the configured delimiters
+for custom markers) in addition to `{{ }}`/`{% %}`. Covered by
+`tests/regression/test_libreoffice_templates.py`.
+
 ### Known limitations (not hidden)
 
 * **Word itself was not available in this environment.** Structural checks and LibreOffice
