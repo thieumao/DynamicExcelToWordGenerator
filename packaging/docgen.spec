@@ -30,9 +30,11 @@ excludes = [
     "pytest", "pytestqt", "mypy", "ruff", "xlwt",
 ]
 
-# LGPL: keep docxtpl as plain .py files next to the executable so it can be replaced by the user
+# LGPL: keep docxtpl as plain .py files next to the executable so it can be replaced by the user.
+# python-docx builds paths like "docx/parts/../templates/x.xml"; its package folders must exist on
+# disk (pyz+py), otherwise non-Windows file systems cannot resolve the ".." segment.
 common = dict(pathex=[str(SRC)], datas=datas, hiddenimports=hiddenimports, excludes=excludes,
-              noarchive=False, module_collection_mode={"docxtpl": "py"})
+              noarchive=False, module_collection_mode={"docxtpl": "py", "docx": "pyz+py"})
 
 gui = Analysis([str(ROOT / "packaging" / "entry_gui.py")], **common)
 cli = Analysis([str(ROOT / "packaging" / "entry_cli.py")], **common)

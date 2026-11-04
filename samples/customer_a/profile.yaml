@@ -1,0 +1,108 @@
+schema_version: 1
+profile:
+  id: customer_a
+  name: "Customer A – Hồ sơ nhân sự"
+  version: 1
+  description: Employee dossier generated from the HR workbook.
+formatting:
+  date_format: "%d/%m/%Y"
+  decimal_separator: ","
+  thousands_separator: "."
+  currency_symbol: "₫"
+excel:
+  primary: emp
+  formula_policy: cached_required
+  sheets:
+    - id: emp
+      match: {name: Employees, aliases: ["Nhân viên"]}
+      header: {mode: auto}
+      key: [employee_id]
+      columns:
+        - {id: employee_id, header: EmployeeID, type: string}
+        - {id: full_name, header: FullName}
+        - {id: department_id, header: DepartmentID, type: string}
+        - {id: position_id, header: PositionID, type: string}
+        - {id: start_date, header: StartDate, type: date}
+        - {id: salary, header: Salary, type: decimal}
+        - {id: grade, header: Grade, type: integer}
+        - {id: email, header: Email, required: false}
+    - id: dept
+      match: {name: Departments}
+      columns:
+        - {id: department_id, header: DepartmentID, type: string}
+        - {id: name, header: DepartmentName}
+        - {id: manager_id, header: ManagerID, type: string}
+    - id: pos
+      match: {name: Positions}
+      columns:
+        - {id: position_id, header: PositionID, type: string}
+        - {id: name, header: PositionName}
+    - id: mgr
+      match: {name: Managers}
+      columns:
+        - {id: manager_id, header: ManagerID, type: string}
+        - {id: name, header: ManagerName}
+    - id: proj
+      match: {name: Projects}
+      columns:
+        - {id: employee_id, header: EmployeeID, type: string}
+        - {id: project, header: ProjectName}
+        - {id: role, header: Role}
+        - {id: hours, header: Hours, type: decimal}
+relationships:
+  - {id: emp_dept, from: emp, to: dept, keys: [{from: department_id, to: department_id}],
+     cardinality: many_to_one, on_missing: error, on_duplicate: error}
+  - {id: emp_pos, from: emp, to: pos, keys: [{from: position_id, to: position_id}],
+     cardinality: many_to_one, on_missing: default, default: "(chưa xác định)"}
+  - {id: dept_mgr, from: dept, to: mgr, keys: [{from: manager_id, to: manager_id}],
+     cardinality: many_to_one}
+  - {id: emp_proj, from: emp, to: proj, keys: [{from: employee_id, to: employee_id}],
+     cardinality: one_to_many, sort: [{by: hours, order: desc}]}
+fields:
+  - {name: employee.code, source: employee_id, required: true}
+  - {name: employee.full_name, source: full_name, transforms: [trim, title_case], required: true}
+  - {name: employee.email, source: email, default: "—"}
+  - {name: employee.department.name, path: emp_dept.name}
+  - {name: employee.department.manager, path: emp_dept.dept_mgr.name}
+  - {name: employee.position.name, path: emp_pos.name}
+  - {name: employee.start_date, source: start_date, transforms: [format_date]}
+  - {name: employee.salary_text, source: salary, transforms: [format_currency]}
+  - {name: employee.salary_words, source: salary, transforms: [{number_to_words_vi: {suffix: "đồng"}}]}
+  - name: employee.level
+    when:
+      - {if: "emp.grade >= 5", value: "Chuyên viên cao cấp"}
+      - {if: "emp.grade >= 3", value: "Chuyên viên"}
+      - {else: "Nhân viên"}
+  - {name: employee.display, expr: "employee.full_name ~ ' (' ~ employee.code ~ ')'"}
+collections:
+  - name: employee.projects
+    relationship: emp_proj
+    fields:
+      - {name: name, source: project}
+      - {name: role, source: role, default: "Thành viên"}
+      - {name: hours, source: hours, transforms: [{format_number: {decimals: 1}}]}
+aggregations:
+  - {name: employee.total_hours, relationship: emp_proj, op: sum, of: hours,
+     transforms: [{format_number: {decimals: 1}}], default: "0"}
+  - {name: employee.project_count, relationship: emp_proj, op: count}
+validation:
+  - {field: employee.email, rule: regex, pattern: "^(—|[^@\\s]+@[^@\\s]+)$", severity: warning}
+  - {field: employee.code, rule: unique}
+templates:
+  - {id: cover, file: templates/Cover.docx, section: {mode: preserve}}
+  - {id: details, file: templates/EmployeeDetails.docx, section: {mode: preserve}}
+  - id: appendix
+    file: templates/Appendix.docx
+    include_if: "employee.project_count > 0"
+    section: {mode: preserve}
+merge:
+  enabled: true
+  order: [cover, details, appendix]
+generation:
+  unit: record
+  output: merged
+  sort: [{by: employee.code}]
+output:
+  merged_filename: "HoSo_{employee.code}_{employee.full_name}.docx"
+  individual_filename: "{template.id}_{employee.code}.docx"
+  on_conflict: suffix

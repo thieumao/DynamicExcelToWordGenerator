@@ -1,0 +1,61 @@
+schema_version: 1
+profile:
+  id: customer_b
+  name: "Customer B – Hợp đồng theo chi nhánh"
+  version: 1
+excel:
+  primary: hd
+  header_matching: {casefold: true, strip_accents: true}
+  sheets:
+    - id: hd
+      match: {name: "Hợp đồng", aliases: ["HopDong"]}
+      header: {mode: auto, scan_rows: 10}
+      columns:
+        - {id: so_hd, header: "Số HĐ", type: string}
+        - {id: khach_hang, header: "Khách hàng"}
+        - {id: chi_nhanh, header: "Chi nhánh", type: string}
+        - {id: ma_pb, header: "Mã PB", type: string}
+        - {id: gia_tri, header: "Giá trị", type: decimal}
+        - {id: ngay_ky, header: "Ngày ký", type: date}
+    - id: pb
+      match: {name: "Phòng ban"}
+      columns:
+        - {id: chi_nhanh, header: "Chi nhánh", type: string}
+        - {id: ma_pb, header: "Mã PB", type: string}
+        - {id: ten_pb, header: "Tên phòng ban"}
+        - {id: truong_phong, header: "Trưởng phòng"}
+relationships:
+  - id: hd_pb
+    from: hd
+    to: pb
+    keys: [{from: chi_nhanh, to: chi_nhanh}, {from: ma_pb, to: ma_pb}]
+    cardinality: many_to_one
+fields:
+  - {name: hop_dong.so, source: so_hd}
+  - {name: hop_dong.khach_hang, source: khach_hang, transforms: [trim]}
+  - {name: hop_dong.chi_nhanh, source: chi_nhanh}
+  - {name: hop_dong.phong_ban, path: hd_pb.ten_pb}
+  - {name: hop_dong.truong_phong, path: hd_pb.truong_phong}
+  - {name: hop_dong.gia_tri, source: gia_tri, transforms: [format_currency]}
+  - {name: hop_dong.gia_tri_chu, source: gia_tri, transforms: [{number_to_words_vi: {suffix: "đồng"}}]}
+  - {name: hop_dong.ngay_ky, source: ngay_ky, transforms: [format_date]}
+templates:
+  - id: hop_dong
+    file: templates/HopDong.docx
+    marker: {style: custom, open: "<<", close: ">>"}
+    bindings:
+      "Số HĐ": hop_dong.so
+      "Khách hàng": hop_dong.khach_hang
+      "Giá trị": hop_dong.gia_tri
+      "Bằng chữ": hop_dong.gia_tri_chu
+    section: {mode: preserve}
+  - id: xac_nhan
+    file: templates/XacNhan.docx
+    marker: {style: mergefield}
+    section: {mode: preserve}
+generation:
+  unit: record
+  output: both
+output:
+  merged_filename: "{hop_dong.chi_nhanh}/HD_{hop_dong.so}.docx"
+  individual_filename: "{hop_dong.chi_nhanh}/{template.id}_{hop_dong.so}.docx"
