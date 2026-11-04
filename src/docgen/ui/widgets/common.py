@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import datetime
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -322,6 +323,8 @@ class RowsTableModel(QAbstractTableModel):
         row = self.rows[index.row()]
         if role == Qt.ItemDataRole.DisplayRole:
             value = row[index.column()] if index.column() < len(row) else None
+            if isinstance(value, datetime.datetime) and value.time() == datetime.time():
+                return value.date().isoformat()
             return "" if value is None else str(value)
         if role == Qt.ItemDataRole.BackgroundRole and self.highlight_row is not None:
             if self.first_row + index.row() == self.highlight_row:

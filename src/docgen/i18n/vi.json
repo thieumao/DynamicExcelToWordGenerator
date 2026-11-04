@@ -369,5 +369,9 @@
  "hint:template.unbound_placeholder": "Gắn placeholder ở trang Template Word hoặc đổi tên theo đường dẫn trường.",
  "issue:template.not_found": "Không tìm thấy file template",
  "issue:output.write_failed": "Không ghi được file kết quả",
- "issue:field.cycle": "Phụ thuộc vòng: {cycle}"
+ "issue:field.cycle": "Phụ thuộc vòng: {cycle}",
+ "Header": "Tiêu đề cột",
+ "Aliases": "Tên khác",
+ "Position": "Vị trí",
+ "Required": "Bắt buộc"
 }
