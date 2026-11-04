@@ -63,7 +63,8 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PTH", "N"]
 ignore = ["RUF001", "RUF002", "RUF003", "N818", "N812", "N802", "PTH105", "SIM105", "SIM102", "SIM101"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["PTH", "B011"]
+"tests/**" = ["PTH", "B011", "RUF059", "E501"]
+"src/docgen/ui/**" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
