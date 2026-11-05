@@ -23,3 +23,4 @@ tools/ooxml-validator/obj/
 handoff/
 dist-installer/
 packaging/Vietnamese.isl
+packaging/docgen.ico

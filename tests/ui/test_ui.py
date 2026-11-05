@@ -335,3 +335,18 @@ def test_user_guide_is_inside_the_app(qtbot, tmp_path):
     text = win.pages["help"].browser.toPlainText()
     assert "A1. Cài đặt" in text and "Dùng thử hồ sơ mẫu" in text
     assert "|" not in text.split("A3. Chuẩn bị file Excel")[1][:400]  # tables are rendered, not raw
+
+
+def test_application_icon(qapp):
+    import struct
+
+    from docgen.ui.icon import SIZES, app_icon, ico_bytes
+
+    data = ico_bytes()
+    reserved, kind, count = struct.unpack_from("<HHH", data, 0)
+    assert (reserved, kind, count) == (0, 1, len(SIZES))
+    for i, size in enumerate(SIZES):
+        width, height, _, _, planes, bpp, length, offset = struct.unpack_from("<BBBBHHII", data, 6 + 16 * i)
+        assert width == height == (0 if size == 256 else size) and (planes, bpp) == (1, 32)
+        assert data[offset : offset + 8] == b"\x89PNG\r\n\x1a\n" and offset + length <= len(data)
+    assert not app_icon().isNull() and len(app_icon().availableSizes()) == len(SIZES)

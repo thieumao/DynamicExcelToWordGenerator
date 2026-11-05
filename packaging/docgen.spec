@@ -43,14 +43,16 @@ gui_pyz = PYZ(gui.pure)
 cli_pyz = PYZ(cli.pure)
 
 version_file = ROOT / "packaging" / "version_info.txt"
+icon_file = ROOT / "packaging" / "docgen.ico"  # written by packaging/make_icon.py
+icon = str(icon_file) if icon_file.exists() else None
 
 gui_exe = EXE(
     gui_pyz, gui.scripts, [], exclude_binaries=True, name="DocGen", console=False,
-    upx=False, version=str(version_file) if version_file.exists() else None,
+    upx=False, version=str(version_file) if version_file.exists() else None, icon=icon,
 )
 cli_exe = EXE(
     cli_pyz, cli.scripts, [], exclude_binaries=True, name="docgen-cli", console=True,
-    upx=False, version=str(version_file) if version_file.exists() else None,
+    upx=False, version=str(version_file) if version_file.exists() else None, icon=icon,
 )
 
 coll = COLLECT(

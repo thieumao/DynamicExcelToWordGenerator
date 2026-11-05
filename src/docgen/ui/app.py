@@ -35,6 +35,9 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName("DocGen")
     app.setOrganizationName("DocGen")
     app.setStyle("Fusion")
+    from docgen.ui.icon import app_icon
+
+    app.setWindowIcon(app_icon())
     from docgen.ui.gc_guard import MainThreadGarbageCollector
 
     collector = MainThreadGarbageCollector(app)  # noqa: F841 - keeps GC on the GUI thread

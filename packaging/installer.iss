@@ -29,6 +29,9 @@ WizardStyle=modern
 UninstallDisplayIcon={app}\DocGen.exe
 UninstallDisplayName=DocGen – Tạo hồ sơ Word từ Excel
 CloseApplications=yes
+#ifexist "docgen.ico"
+SetupIconFile=docgen.ico
+#endif
 
 [Languages]
 #ifexist "Vietnamese.isl"
