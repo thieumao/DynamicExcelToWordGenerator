@@ -26,6 +26,7 @@ from docgen.ui.pages.logs import LogsPage
 from docgen.ui.pages.mapping import MappingPage
 from docgen.ui.pages.preview import PreviewPage
 from docgen.ui.pages.profiles import ProfilesPage
+from docgen.ui.pages.quickstart import QuickStartPage
 from docgen.ui.pages.relationships import RelationshipsPage
 from docgen.ui.pages.settings import SettingsPage
 from docgen.ui.pages.templates import TemplatesPage
@@ -57,6 +58,7 @@ QProgressBar::chunk { background: #2563eb; border-radius: 6px; }
 
 PAGES = [
     ("dashboard", "Dashboard", QStyle.StandardPixmap.SP_DirHomeIcon),
+    ("quickstart", "Create documents quickly", QStyle.StandardPixmap.SP_FileDialogNewFolder),
     ("profiles", "Customer profiles", QStyle.StandardPixmap.SP_FileDialogContentsView),
     ("excel", "Excel configuration", QStyle.StandardPixmap.SP_FileDialogDetailedView),
     ("relationships", "Relationships", QStyle.StandardPixmap.SP_FileLinkIcon),
@@ -106,6 +108,7 @@ class MainWindow(QMainWindow):
 
         self.pages: dict[str, QWidget] = {
             "dashboard": DashboardPage(state),
+            "quickstart": QuickStartPage(state),
             "profiles": ProfilesPage(state),
             "excel": ExcelPage(state),
             "relationships": RelationshipsPage(state),

@@ -489,9 +489,9 @@ def _left_cell_label(p: etree._Element) -> str:
 
 
 def _label_before(text: str) -> str:
-    segment = text.rstrip()
-    if segment.endswith(":"):
-        segment = segment[:-1]
+    segment = text.rstrip().rstrip(":：").rstrip()
+    # 'Các ý kiến khác (nếu có):' -> 'Các ý kiến khác': a trailing note in brackets is not the label
+    segment = re.sub(r"\s*\([^()]{0,40}\)$", "", segment).rstrip().rstrip(":：").rstrip()
     cut = max((m.end() for m in _LABEL_CUT.finditer(segment)), default=0)
     words = segment[cut:].split()
     return _clean_name(" ".join(words[-8:]))

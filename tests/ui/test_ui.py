@@ -10,7 +10,7 @@ import pytest
 pytest.importorskip("PySide6.QtWidgets")
 pytestmark = pytest.mark.ui
 
-from PySide6.QtCore import QTimer  # noqa: E402
+from PySide6.QtCore import Qt, QTimer  # noqa: E402
 
 from docgen.i18n.catalog import set_language, tr  # noqa: E402
 from docgen.testing.samples import write_customer_a  # noqa: E402
@@ -210,3 +210,39 @@ def test_templates_page_lists_form_inputs_and_binding_fills_them(qtbot, tmp_path
     assert state.profile.templates[0].bindings["ngày"] == "nhan_vien.sinh_ngay"
     qtbot.waitUntil(lambda: rows().get("ngày", ("", ""))[1] == "will be filled", timeout=20000)
     assert not no_modal_dialogs
+
+
+def test_quick_start_wizard_from_excel_and_word_to_documents(qtbot, tmp_path):
+    """A first-time user: no profile, just an Excel file and two Word forms."""
+    from docgen.testing.construction import write_construction_kit
+
+    set_language("vi")
+    state = AppState(tmp_path / "home")
+    _, workbook = write_construction_kit(tmp_path / "files")
+    win = MainWindow(state)
+    qtbot.addWidget(win)
+    win.show()
+    win.go("quickstart")
+    page = win.pages["quickstart"]
+    assert not page.next_btn.isEnabled()
+    page.open_excel(workbook)
+    qtbot.waitUntil(lambda: page.analysis is not None and page.worker is None, timeout=30000)
+    assert "6 dòng – mỗi dòng sẽ tạo một bộ tài liệu" in page.found.text()
+    assert page.next_btn.isEnabled()
+    page.next()
+    templates = tmp_path / "files" / "templates"
+    page.add_words([templates / "PhieuYeuCauNghiemThu.docx", templates / "BienBanNghiemThu.docx"])
+    page.next()
+    qtbot.waitUntil(lambda: page.stack.currentIndex() == 2 and page.worker is None, timeout=30000)
+    assert "36" in page.match_info.text()  # 36 of 38 places matched automatically
+    page.choose(0, "Ngày yêu cầu bằng chữ", "dong.ngay_nghiem_thu_bang_chu")
+    page.next()
+    assert page.name.text() == "Nhà làm việc 5 tầng – Công ty CP Đầu tư DEF"
+    page.output.edit.setText(str(tmp_path / "ket qua"))
+    page.next()  # save and create
+    generate = win.pages["generate"]
+    qtbot.waitUntil(lambda: generate.result is not None and generate.worker is None, timeout=120000)
+    assert generate.result.status == "completed", [str(i) for i in generate.result.all_issues()]
+    assert len(generate.result.documents) == 6 and generate.result.combined_path
+    assert state.profile is not None and state.repo.exists(state.profile.profile.id)
+    assert win.nav.currentItem().data(Qt.ItemDataRole.UserRole) == "generate"

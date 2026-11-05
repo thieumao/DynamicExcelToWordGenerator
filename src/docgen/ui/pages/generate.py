@@ -91,6 +91,8 @@ class GeneratePage(QWidget):
         form.addRow(tr("Records"), self.rows)
         self.both = QCheckBox(tr("Also save individual template documents"))
         form.addRow("", self.both)
+        self.combined = QCheckBox(tr("Also make one file with everything, ready to print"))
+        form.addRow("", self.combined)
         self.fail_fast = QCheckBox(tr("Stop at the first error (fail-fast)"))
         form.addRow("", self.fail_fast)
         self.workers = QSpinBox()
@@ -148,6 +150,7 @@ class GeneratePage(QWidget):
         state.profile_changed.connect(self.refresh)
         state.profile_edited.connect(self.refresh)
         state.workbook_changed.connect(lambda: self.excel.set_path(state.excel_path))
+        state.run_requested.connect(self.run_now)
         self.refresh()
 
     def refresh(self) -> None:
@@ -163,6 +166,7 @@ class GeneratePage(QWidget):
             self.output.set_path(self.state.settings.default_output_dir)
         self.templates.clear()
         if p:
+            self.combined.setChecked(bool(p.output.combined_filename))
             for t in p.ordered_templates():
                 item = QListWidgetItem(t.id)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
@@ -255,7 +259,17 @@ class GeneratePage(QWidget):
             workers=self.workers.value() or (self.state.settings.workers or None),
             error_policy=ErrorPolicy.FAIL_FAST if self.fail_fast.isChecked() else None,
             dry_run=dry_run,
+            combined=self.combined.isChecked(),
         )
+
+    def run_now(self, excel: str, output: str) -> None:
+        """Generate right away (the quick start wizard and the sample use this)."""
+        self.excel.edit.setText(excel)
+        self.output.edit.setText(output)
+        self.mode.setCurrentIndex(0)
+        self.rows.clear()
+        self.refresh()
+        self._start(dry_run=False)
 
     def _start(self, *, dry_run: bool) -> None:
         if self.worker is not None:
@@ -337,6 +351,11 @@ class GeneratePage(QWidget):
                 docs=len(result.documents),
                 errors=result.error_count,
                 warnings=result.warning_count,
+            )
+            + (
+                "\n" + tr("File with everything, to print: {name}", name=Path(result.combined_path).name)
+                if result.combined_path
+                else ""
             )
         )
         self.state.publish_issues(tr("Generation"), all_issues)
