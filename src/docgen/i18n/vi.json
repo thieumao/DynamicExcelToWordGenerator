@@ -527,5 +527,9 @@
  "issue:header.low_confidence": "Dòng tiêu đề {row} của sheet '{sheet}' được dò với độ tin cậy thấp ({confidence})",
  "hint:header.low_confidence": "Kiểm tra dòng tiêu đề ở trang Cấu hình Excel hoặc nhập tay số dòng tiêu đề.",
  "issue:column.ambiguous": "Cột {column} khớp nhiều tiêu đề trong sheet '{sheet}' (các cột {positions})",
- "hint:column.ambiguous": "Đặt vị trí cột (position) để chọn đúng một cột, hoặc đổi tên các tiêu đề."
+ "hint:column.ambiguous": "Đặt vị trí cột (position) để chọn đúng một cột, hoặc đổi tên các tiêu đề.",
+ "issue:lookup.single_row_expected": "Sheet '{sheet}' dùng làm thông tin chung nên chỉ được có đúng một dòng dữ liệu (đang có {count} dòng)",
+ "hint:lookup.single_row_expected": "Giữ một dòng dữ liệu trong sheet đó, hoặc nối nó bằng cột mã (khóa) ở trang Quan hệ giữa các sheet.",
+ "issue:lookup.single_row_missing": "Sheet thông tin chung '{sheet}' chưa có dữ liệu",
+ "hint:lookup.single_row_missing": "Điền thông tin chung (tên công trình, địa điểm…) vào sheet này trong Excel."
 }

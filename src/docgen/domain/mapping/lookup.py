@@ -92,9 +92,9 @@ class LookupIndex:
             if row_filter is not None and not row_filter(RowView(table, i)):
                 continue
             key = make_key([row[p] for p in positions], norm)
-            if all(part is None for part in key):
+            if key and all(part is None for part in key):
                 continue
-            index.entries.setdefault(key, []).append(i)
+            index.entries.setdefault(key, []).append(i)  # no keys: every row under ()
         if relationship.sort:
             for key, rows in index.entries.items():
                 index.entries[key] = sort_rows(table, rows, relationship.sort)
@@ -106,6 +106,22 @@ class LookupIndex:
                 severity = (
                     Severity.ERROR if relationship.on_duplicate is OnDuplicate.ERROR else Severity.WARNING
                 )
+                if not relationship.keys:
+                    rows = index.duplicates[()]
+                    index.issues.append(
+                        make_issue(
+                            "lookup.single_row_expected",
+                            severity,
+                            Category.DUPLICATE,
+                            f"Sheet '{table.sheet_name}' is used as general information and must have "
+                            f"exactly one data row; it has {len(rows)}",
+                            suggestion="Keep one row of data in that sheet, or link it with key columns.",
+                            sheet=table.sheet_name,
+                            rule=relationship.id,
+                            count=len(rows),
+                        )
+                    )
+                    return index
                 for key, rows in list(index.duplicates.items())[:200]:
                     excel_rows = [table.row_numbers[r] for r in rows]
                     index.issues.append(
@@ -132,6 +148,8 @@ class LookupIndex:
 
 
 def format_key(key: Key) -> str:
+    if not key:
+        return "()"
     return (
         "(" + ", ".join("∅" if k is None else repr(k) for k in key) + ")"
         if len(key) > 1
@@ -158,11 +176,25 @@ def resolve(
     key_values = [source.value(source_row, p.from_) for p in rel.keys]
     key = make_key(key_values, rel.key_normalize)
     excel_row = source.row_numbers[source_row]
-    if all(part is None for part in key) or any(part is None for part in key):
+    if key and (all(part is None for part in key) or any(part is None for part in key)):
         if not rel.empty_key_is_missing:
             return Resolution([], [], empty_key=True)
     matches = index.lookup(key)
     issues: list[Issue] = []
+    if not matches and not rel.keys:
+        if rel.on_missing in (OnMissing.ERROR, OnMissing.WARN):
+            issues.append(
+                make_issue(
+                    "lookup.single_row_missing",
+                    Severity.ERROR if rel.on_missing is OnMissing.ERROR else Severity.WARNING,
+                    Category.MISSING_REFERENCE,
+                    f"Sheet '{index.table.sheet_name}' (general information) has no data row",
+                    suggestion="Fill in the general information sheet in Excel.",
+                    sheet=index.table.sheet_name,
+                    rule=rel.id,
+                )
+            )
+        return Resolution([], issues, missing=True)
     if not matches:
         if rel.on_missing in (OnMissing.ERROR, OnMissing.WARN):
             severity = Severity.ERROR if rel.on_missing is OnMissing.ERROR else Severity.WARNING

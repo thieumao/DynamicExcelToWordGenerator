@@ -166,6 +166,8 @@ class WorkbookLoader:
         info: SheetInfo,
         header_override: int | None,
     ) -> tuple[SheetTable | None, SheetLoadInfo, list[Issue]]:
+        if cfg.layout == "key_value":
+            return self._load_key_value(source, cfg, info)
         issues: list[Issue] = []
         hm = self.excel.header_matching
         header_cfg = cfg.header
@@ -267,6 +269,61 @@ class WorkbookLoader:
             SheetLoadInfo(cfg.id, info.name, header_row, confidence, len(table.rows), headers),
             issues,
         )
+
+    def _load_key_value(
+        self, source: WorkbookSource, cfg: SheetConfig, info: SheetInfo
+    ) -> tuple[SheetTable | None, SheetLoadInfo, list[Issue]]:
+        """A 'general information' sheet: each row holds a label and, to its right, its value.
+
+        The whole sheet becomes one record whose columns are the labels, e.g.
+        ``Tên công trình | Nhà làm việc 5 tầng`` and ``Địa điểm | Hà Nội``.
+        """
+        issues: list[Issue] = []
+        start = cfg.data.start_row or 1
+        labels: list[str] = []
+        values: list[Any] = []
+        cells: list[tuple[int, int]] = []  # (excel row, 0-based column) of each value
+        for offset, raw in enumerate(source.iter_rows(info.name, start, cfg.data.end_row)):
+            filled = [(i, v) for i, v in enumerate(raw) if not V.is_empty(v)]
+            if not filled or not isinstance(filled[0][1], str):
+                continue  # empty rows, numbers without a label
+            label = filled[0][1].strip().rstrip(":：").strip()
+            if label:
+                labels.append(label)
+                # no value yet (or a formula without a stored result): the cell right of the label
+                value_col = filled[1][0] if len(filled) > 1 else filled[0][0] + 1
+                values.append(filled[1][1] if len(filled) > 1 else None)
+                cells.append((start + offset, value_col))
+        bindings, bind_issues = self._bind_columns(cfg, info.name, labels)
+        issues.extend(bind_issues)
+        if any(i.severity is Severity.ERROR for i in bind_issues):
+            return None, SheetLoadInfo(cfg.id, info.name, None, 1.0, 0, labels), issues
+        located = [
+            ColumnBinding(
+                b.column_id,
+                b.header,
+                None if b.index is None else cells[b.index][1],
+                "" if b.index is None else f"{column_letter(cells[b.index][1])}{cells[b.index][0]}",
+            )
+            for b in bindings
+        ]
+        table = SheetTable(cfg.id, info.name, located, header_row=None)
+        row: list[Any] = []
+        for ci, (spec, b) in enumerate(zip(cfg.columns, bindings, strict=True)):
+            if b.index is None:
+                row.append(None)
+                continue
+            before = len(issues)
+            row.append(
+                self._convert(values[b.index], spec, info.name, cells[b.index][0], located[ci], issues)
+            )
+            if len(issues) > before and issues[-1].code == "cell.type_mismatch":
+                table.invalid[(0, ci)] = ("cell.type_mismatch", "error")
+        table.rows.append(tuple(row))
+        table.row_numbers.append(cells[0][0] if cells else start)
+        cell_map = {cells[b.index]: (0, ci) for ci, b in enumerate(bindings) if b.index is not None}
+        self._apply_formula_policy(source, cfg, table, issues, cell_map)
+        return table, SheetLoadInfo(cfg.id, info.name, None, 1.0, 1, labels), issues
 
     def _bind_columns(
         self, cfg: SheetConfig, sheet_name: str, headers: list[str]
@@ -427,15 +484,34 @@ class WorkbookLoader:
         return value
 
     def _apply_formula_policy(
-        self, source: WorkbookSource, cfg: SheetConfig, table: SheetTable, issues: list[Issue]
+        self,
+        source: WorkbookSource,
+        cfg: SheetConfig,
+        table: SheetTable,
+        issues: list[Issue],
+        cell_map: dict[tuple[int, int], tuple[int, int]] | None = None,
     ) -> None:
+        """Check formula cells; *cell_map* maps (excel row, column) to (row, column) of the table."""
         policy = cfg.formula_policy or self.excel.formula_policy
         if policy is FormulaPolicy.SKIP_CHECK or not table.rows:
             return
         if not source.supports_formulas:
             return
-        columns = {b.index for b in table.columns if b.index is not None}
-        first, last = table.row_numbers[0], table.row_numbers[-1]
+        if cell_map is None:  # a normal table: rows x bound columns (no per-cell map for big sheets)
+            col_pos = {b.index: i for i, b in enumerate(table.columns) if b.index is not None}
+            row_lookup = {r: i for i, r in enumerate(table.row_numbers)}
+            columns = set(col_pos)
+            first, last = table.row_numbers[0], table.row_numbers[-1]
+
+            def locate(excel_row: int, col: int) -> tuple[int, int] | None:
+                ri = row_lookup.get(excel_row)
+                return None if ri is None or col not in col_pos else (ri, col_pos[col])
+        else:
+            if not cell_map:
+                return
+            columns = {c for _, c in cell_map}
+            first, last = min(r for r, _ in cell_map), max(r for r, _ in cell_map)
+            locate = lambda excel_row, col: cell_map.get((excel_row, col))  # noqa: E731
         if isinstance(source, XlsxSource):
             formulas = source.formula_cells(
                 table.sheet_name, columns, first, last, need_text=policy is FormulaPolicy.RAW_FORMULA
@@ -457,14 +533,12 @@ class WorkbookLoader:
                     sheet=table.sheet_name,
                 )
             )
-        col_pos = {b.index: i for i, b in enumerate(table.columns) if b.index is not None}
-        row_lookup = {r: i for i, r in enumerate(table.row_numbers)}
         missing_reported = 0
         for (excel_row, col), formula in formulas.items():
-            ri = row_lookup.get(excel_row)
-            if ri is None:
+            target = locate(excel_row, col)
+            if target is None:
                 continue
-            ci = col_pos[col]
+            ri, ci = target
             cached = table.rows[ri][ci]
             binding = table.columns[ci]
             if policy is FormulaPolicy.RAW_FORMULA:

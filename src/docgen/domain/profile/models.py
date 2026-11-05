@@ -241,6 +241,11 @@ class ColumnSpec(_Model):
 class SheetConfig(_Model):
     id: Identifier
     match: SheetMatch
+    layout: Literal["table", "key_value"] = Field(
+        default="table",
+        description="table: one header row, one record per row; key_value: a label cell with its "
+        "value in the next filled cell to the right (e.g. 'Tên công trình | Nhà A'), read as one row",
+    )
     header: HeaderConfig = Field(default_factory=HeaderConfig)
     data: DataRange = Field(default_factory=DataRange)
     columns: list[ColumnSpec] = Field(min_length=1)
@@ -315,7 +320,11 @@ class Relationship(_Model):
     id: Identifier
     from_: Identifier = Field(alias="from", description="source sheet id")
     to: Identifier = Field(description="target sheet id")
-    keys: list[JoinPair] = Field(min_length=1, description="several pairs = composite key")
+    keys: list[JoinPair] = Field(
+        default_factory=list,
+        description="several pairs = composite key; none = every row uses the target sheet's only "
+        "row (general information such as the project details), or all its rows for one_to_many",
+    )
     cardinality: Cardinality = Cardinality.MANY_TO_ONE
     match: MatchMode | None = None
     on_missing: OnMissing = OnMissing.ERROR
