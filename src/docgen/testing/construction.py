@@ -32,6 +32,8 @@ from docx.text.paragraph import Paragraph
 from docgen.testing.xlsx_builder import build_xlsx
 
 KIT_ID = "ho_so_nghiem_thu"
+MATERIALS_KIT_ID = "nghiem_thu_vat_lieu"
+MATERIALS_PROFILE_FILE = "profile_vat_lieu.yaml"
 
 PROFILE = """\
 schema_version: 1
@@ -131,6 +133,75 @@ output:
   individual_filename: "{template.id} - {nghiem_thu.stt}.docx"
   combined_filename: "Tổng hợp hồ sơ nghiệm thu.docx"   # every document in one file, to print
 """
+
+
+MATERIALS_PROFILE = (
+    """\
+schema_version: 1
+profile:
+  id: nghiem_thu_vat_lieu
+  name: "Nghiệm thu vật liệu đầu vào (mẫu)"
+  version: 1
+  description: >
+    Mỗi dòng của sheet 'Vật liệu đầu vào' tạo một Biên bản nghiệm thu vật liệu đầu vào.
+    Dùng chung file Excel với hồ sơ nghiệm thu công việc (thông tin công trình, nhân sự).
+excel:
+  primary: vl
+  sheets:
+    - id: vl
+      match: {name: "Vật liệu đầu vào"}
+      columns:
+        - {id: stt, header: "STT"}
+        - {id: so_bien_ban, header: "Số biên bản", type: string}
+        - {id: ten_vat_lieu, header: "Tên vật liệu"}
+        - {id: quy_cach, header: "Quy cách chủng loại", required: false}
+        - {id: nha_san_xuat, header: "Nhà sản xuất", required: false}
+        - {id: khoi_luong, header: "Khối lượng", required: false}
+        - {id: don_vi, header: "Đơn vị", required: false}
+        - {id: hang_muc_su_dung, header: "Hạng mục sử dụng", required: false}
+        - {id: chung_chi, header: "Chứng chỉ chất lượng", required: false}
+        - {id: thi_nghiem, header: "Kết quả thí nghiệm", required: false}
+        - {id: ngay_nghiem_thu, header: "Ngày nghiệm thu", type: date}
+        - {id: ma_giam_sat, header: "Mã giám sát", type: string}
+        - {id: ma_ky_thuat, header: "Mã kỹ thuật", type: string}
+        - {id: ket_qua, header: "Kết quả", required: false}
+"""
+    + PROFILE[PROFILE.index("    - id: ct\n") : PROFILE.index("fields:\n")].replace("from: dm,", "from: vl,")
+    + """fields:
+"""
+    + PROFILE[PROFILE.index("  # project details") : PROFILE.index("  # the work item")]
+    + """  # the material (sheet 'Vật liệu đầu vào')
+  - {name: vat_lieu.stt, source: stt}
+  - {name: vat_lieu.so_bien_ban, source: so_bien_ban}
+  - {name: vat_lieu.ten_vat_lieu, source: ten_vat_lieu}
+  - {name: vat_lieu.quy_cach_chung_loai, source: quy_cach, default: "……"}
+  - {name: vat_lieu.nha_san_xuat, source: nha_san_xuat, default: "……"}
+  - {name: vat_lieu.khoi_luong, source: khoi_luong, default: "……"}
+  - {name: vat_lieu.don_vi, source: don_vi, default: ""}
+  - {name: vat_lieu.hang_muc_su_dung, source: hang_muc_su_dung, default: "……"}
+  - {name: vat_lieu.chung_chi_chat_luong, source: chung_chi, default: "……"}
+  - {name: vat_lieu.ket_qua_thi_nghiem, source: thi_nghiem, default: "……"}
+  - {name: vat_lieu.ket_qua, source: ket_qua, default: "Đạt"}
+  - name: vat_lieu.ngay_nghiem_thu_bang_chu
+    source: ngay_nghiem_thu
+    transforms: [{format_date: {format: "ngày %d tháng %m năm %Y"}}]
+  - {name: vat_lieu.ho_ten_giam_sat, path: gs.ho_ten}
+  - {name: vat_lieu.chuc_vu_giam_sat, path: gs.chuc_vu}
+  - {name: vat_lieu.ho_ten_ky_thuat, path: kt.ho_ten}
+  - {name: vat_lieu.chuc_vu_ky_thuat, path: kt.chuc_vu}
+templates:
+  - id: bien_ban_vat_lieu
+    file: templates/BienBanNghiemThuVatLieu.docx
+    marker: {style: custom, open: "<<", close: ">>"}
+generation:
+  unit: record
+  output: merged
+output:
+  merged_filename: "VL {vat_lieu.stt} - {vat_lieu.ten_vat_lieu}.docx"
+  individual_filename: "{template.id} - {vat_lieu.stt}.docx"
+  combined_filename: "Tổng hợp nghiệm thu vật liệu.docx"
+"""
+)
 
 
 def sheets() -> dict[str, list[list[object]]]:
@@ -248,6 +319,90 @@ def sheets() -> dict[str, list[list[object]]]:
                 day(12),
                 dt.time(7, 30),
                 dt.time(11, 0),
+                "GS02",
+                "KT02",
+                "Đạt",
+            ],
+        ],
+        "Vật liệu đầu vào": [
+            ["DANH MỤC VẬT LIỆU ĐẦU VÀO CẦN NGHIỆM THU – mỗi dòng là một biên bản"],
+            [],
+            [
+                "STT",
+                "Số biên bản",
+                "Tên vật liệu",
+                "Quy cách chủng loại",
+                "Nhà sản xuất",
+                "Khối lượng",
+                "Đơn vị",
+                "Hạng mục sử dụng",
+                "Chứng chỉ chất lượng",
+                "Kết quả thí nghiệm",
+                "Ngày nghiệm thu",
+                "Mã giám sát",
+                "Mã kỹ thuật",
+                "Kết quả",
+            ],
+            [
+                1,
+                "01/NTVL",
+                "Thép cốt bê tông",
+                "CB300-V, D10–D25",
+                "Nhà máy thép (mẫu)",
+                12.5,
+                "tấn",
+                "Cột, dầm, sàn tầng 1–2",
+                "CQ số 1234/2024",
+                "Phiếu KQTN số 45/2024",
+                day(1),
+                "GS01",
+                "KT01",
+                "Đạt",
+            ],
+            [
+                2,
+                "02/NTVL",
+                "Xi măng",
+                "PCB40, bao 50 kg",
+                "Nhà máy xi măng (mẫu)",
+                30,
+                "tấn",
+                "Bê tông, vữa phần thân",
+                "CQ số 567/2024",
+                "Phiếu KQTN số 46/2024",
+                day(1),
+                "GS01",
+                "KT02",
+                "Đạt",
+            ],
+            [
+                3,
+                "03/NTVL",
+                "Cát vàng",
+                "Cát hạt thô, Mđl ≥ 2,0",
+                "Mỏ cát (mẫu)",
+                45,
+                "m³",
+                "Bê tông phần thân",
+                "—",
+                "Phiếu KQTN số 47/2024",
+                day(8),
+                "GS02",
+                "KT01",
+                "Đạt",
+            ],
+            [
+                4,
+                "04/NTVL",
+                "Đá dăm",
+                "Đá 1x2 (10–20 mm)",
+                "Mỏ đá (mẫu)",
+                60,
+                "m³",
+                "Bê tông phần thân",
+                "—",
+                "Phiếu KQTN số 48/2024",
+                day(8),
                 "GS02",
                 "KT02",
                 "Đạt",
@@ -388,12 +543,55 @@ def record_template(path: Path) -> None:
     doc.save(str(path))
 
 
+def materials_template(path: Path) -> None:
+    doc = _document()
+    _national_header(doc, "<<Nơi lập biên bản>>, <<Ngày nghiệm thu bằng chữ>>")
+    _line(doc, "BIÊN BẢN NGHIỆM THU VẬT LIỆU ĐẦU VÀO", bold=True, align=WD_ALIGN_PARAGRAPH.CENTER, size=15)
+    _line(doc, "Số: <<Số biên bản>>", align=WD_ALIGN_PARAGRAPH.CENTER)
+    _line(doc, "1. Công trình: <<Tên công trình>>", bold=True)
+    _line(doc, "Hạng mục: <<Hạng mục>>")
+    _line(doc, "Địa điểm xây dựng: <<Địa điểm xây dựng>>")
+    _line(doc, "2. Đối tượng nghiệm thu: <<Tên vật liệu>>", bold=True)
+    _line(doc, "Quy cách, chủng loại: <<Quy cách chủng loại>>")
+    _line(doc, "Nhà sản xuất, xuất xứ: <<Nhà sản xuất>>")
+    _line(doc, "Khối lượng: <<Khối lượng>> <<Đơn vị>> – dùng cho: <<Hạng mục sử dụng>>")
+    _line(doc, "3. Thành phần trực tiếp nghiệm thu:", bold=True)
+    _line(doc, "a) Đại diện đơn vị tư vấn giám sát – <<Đơn vị tư vấn giám sát>>:")
+    _line(doc, "Ông/Bà: <<Họ tên giám sát>> – Chức vụ: <<Chức vụ giám sát>>")
+    _line(doc, "b) Đại diện nhà thầu thi công – <<Nhà thầu thi công>>:")
+    _line(doc, "Ông/Bà: <<Họ tên kỹ thuật>> – Chức vụ: <<Chức vụ kỹ thuật>>")
+    _line(doc, "4. Thời gian nghiệm thu: <<Ngày nghiệm thu bằng chữ>>, tại công trường.", bold=True)
+    _line(doc, "5. Đánh giá vật liệu:", bold=True)
+    _line(doc, "a) Tài liệu làm căn cứ nghiệm thu:")
+    _line(doc, "– Chứng chỉ chất lượng, chứng nhận xuất xưởng: <<Chứng chỉ chất lượng>>;")
+    _line(doc, "– Kết quả thí nghiệm: <<Kết quả thí nghiệm>>;")
+    _line(doc, "– Hợp đồng thi công số <<Hợp đồng thi công số>>.")
+    _line(doc, "b) Về chất lượng: <<Kết quả>> yêu cầu của thiết kế và tiêu chuẩn áp dụng.")
+    _line(doc, "c) Các ý kiến khác (nếu có): ..............................................................")
+    _line(doc, "6. Kết luận:", bold=True)
+    _line(doc, "Chấp nhận nghiệm thu, đồng ý đưa vật liệu nêu trên vào sử dụng cho công trình.")
+    _line(doc)
+    _signatures(
+        doc,
+        ("ĐẠI DIỆN TƯ VẤN GIÁM SÁT", "<<Họ tên giám sát>>"),
+        ("ĐẠI DIỆN NHÀ THẦU THI CÔNG", "<<Họ tên kỹ thuật>>"),
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(path))
+
+
 def write_construction_kit(directory: Path) -> tuple[Path, Path]:
-    """Write profile.yaml, the Excel file and both Word forms into *directory*."""
+    """Write both profiles, the Excel file and the Word forms into *directory*.
+
+    Returns the work-items profile (``profile.yaml``) and the workbook; the materials profile is
+    ``profile_vat_lieu.yaml`` next to it and uses the same workbook.
+    """
     directory.mkdir(parents=True, exist_ok=True)
     profile = directory / "profile.yaml"
     profile.write_text(PROFILE, encoding="utf-8")
+    (directory / MATERIALS_PROFILE_FILE).write_text(MATERIALS_PROFILE, encoding="utf-8")
     request_template(directory / "templates" / "PhieuYeuCauNghiemThu.docx")
     record_template(directory / "templates" / "BienBanNghiemThu.docx")
+    materials_template(directory / "templates" / "BienBanNghiemThuVatLieu.docx")
     workbook = build_xlsx(directory / "data" / "HoSoNghiemThu.xlsx", sheets())
     return profile, workbook

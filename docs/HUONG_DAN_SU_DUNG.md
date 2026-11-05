@@ -25,10 +25,11 @@ DocGen tạo hồ sơ, biên bản, phiếu… bằng Word từ dữ liệu tron
 
 1. Mở DocGen. Ở **Trang chủ**, bấm **3. Dùng thử hồ sơ mẫu**.
 2. Ứng dụng tạo thư mục `Tài liệu (Documents)\DocGen\Mẫu - Hồ sơ nghiệm thu` gồm:
-   - `data\HoSoNghiemThu.xlsx`: file Excel mẫu (thông tin công trình, danh mục công việc nghiệm thu, nhân sự);
-   - `templates\`: hai mẫu Word *Phiếu yêu cầu nghiệm thu* và *Biên bản nghiệm thu công việc xây dựng*.
+   - `data\HoSoNghiemThu.xlsx`: file Excel mẫu (thông tin công trình, danh mục công việc nghiệm thu, vật liệu đầu vào, nhân sự);
+   - `templates\`: các mẫu Word *Phiếu yêu cầu nghiệm thu*, *Biên bản nghiệm thu công việc xây dựng* và *Biên bản nghiệm thu vật liệu đầu vào*.
 3. Ứng dụng tạo luôn 6 bộ hồ sơ (mỗi công việc một file) và **một file tổng hợp để in**, lưu trong thư mục `Kết quả`. Bấm **Mở thư mục kết quả** để xem.
 4. Mở file Excel và các mẫu Word ở trên để xem cách nhập dữ liệu và cách đánh dấu chỗ cần điền. Bạn có thể sửa thử file Excel rồi tạo lại.
+5. Trong *Bộ hồ sơ đã lưu* còn có bộ **Nghiệm thu vật liệu đầu vào (mẫu)**: dùng chung file Excel đó (sheet *Vật liệu đầu vào*), mỗi vật liệu một biên bản. Một file Excel cho mỗi công trình có thể phục vụ nhiều bộ hồ sơ.
 
 ## A3. Chuẩn bị file Excel
 

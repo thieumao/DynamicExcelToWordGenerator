@@ -30,6 +30,7 @@ def test_construction_files_become_a_working_profile(tmp_path):
     assert {s.name: s.role for s in analysis.sheets} == {
         "Thông tin công trình": q.ROLE_INFO,
         "Danh mục nghiệm thu": q.ROLE_LIST,
+        "Vật liệu đầu vào": q.ROLE_IGNORE,  # a second list: not used by this set
         "Nhân sự": q.ROLE_LOOKUP,
     }
     assert q.describe(analysis)[1] == "Sheet 'Danh mục nghiệm thu': 6 dòng – mỗi dòng sẽ tạo một bộ tài liệu."

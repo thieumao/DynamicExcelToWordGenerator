@@ -293,10 +293,8 @@ def test_simple_mode_hides_setup_pages_and_example_runs(qtbot, tmp_path, monkeyp
 
     install_construction_kit(state.repo, folder)
     assert excel.stat().st_mtime_ns == stamp
-    assert (
-        home.profiles.count() == 1
-        and home.profiles.item(0).text() == "Hồ sơ nghiệm thu công việc xây dựng (mẫu)"
-    )
+    names = {home.profiles.item(i).text() for i in range(home.profiles.count())}
+    assert names == {"Hồ sơ nghiệm thu công việc xây dựng (mẫu)", "Nghiệm thu vật liệu đầu vào (mẫu)"}
 
 
 def test_saved_set_reopens_with_its_excel_file_and_folder(qtbot, tmp_path, monkeypatch):

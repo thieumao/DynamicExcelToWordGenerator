@@ -90,6 +90,19 @@ def test_generated_documents_conform_to_office_schemas(validator: Path, tmp_path
             )
         )
         assert result.status == "completed", [str(i) for i in result.all_issues()]
+    from docgen.testing.construction import MATERIALS_PROFILE_FILE
+
+    kit = tmp_path / "src_xay_dung"
+    materials = service.run(
+        GenerationRequest(
+            load_profile(kit / MATERIALS_PROFILE_FILE),
+            kit,
+            kit / "data" / "HoSoNghiemThu.xlsx",
+            corpus / "vat_lieu",
+            output=OutputKind.BOTH,
+        )
+    )
+    assert materials.status == "completed", [str(i) for i in materials.all_issues()]
     rich = build_rich_template(tmp_path / "rich.docx")
     renderer = TemplateRenderer()
     a, b = corpus / "rich" / "a.docx", corpus / "rich" / "b.docx"

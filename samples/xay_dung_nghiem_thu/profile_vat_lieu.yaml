@@ -1,0 +1,90 @@
+schema_version: 1
+profile:
+  id: nghiem_thu_vat_lieu
+  name: "Nghiệm thu vật liệu đầu vào (mẫu)"
+  version: 1
+  description: >
+    Mỗi dòng của sheet 'Vật liệu đầu vào' tạo một Biên bản nghiệm thu vật liệu đầu vào.
+    Dùng chung file Excel với hồ sơ nghiệm thu công việc (thông tin công trình, nhân sự).
+excel:
+  primary: vl
+  sheets:
+    - id: vl
+      match: {name: "Vật liệu đầu vào"}
+      columns:
+        - {id: stt, header: "STT"}
+        - {id: so_bien_ban, header: "Số biên bản", type: string}
+        - {id: ten_vat_lieu, header: "Tên vật liệu"}
+        - {id: quy_cach, header: "Quy cách chủng loại", required: false}
+        - {id: nha_san_xuat, header: "Nhà sản xuất", required: false}
+        - {id: khoi_luong, header: "Khối lượng", required: false}
+        - {id: don_vi, header: "Đơn vị", required: false}
+        - {id: hang_muc_su_dung, header: "Hạng mục sử dụng", required: false}
+        - {id: chung_chi, header: "Chứng chỉ chất lượng", required: false}
+        - {id: thi_nghiem, header: "Kết quả thí nghiệm", required: false}
+        - {id: ngay_nghiem_thu, header: "Ngày nghiệm thu", type: date}
+        - {id: ma_giam_sat, header: "Mã giám sát", type: string}
+        - {id: ma_ky_thuat, header: "Mã kỹ thuật", type: string}
+        - {id: ket_qua, header: "Kết quả", required: false}
+    - id: ct
+      match: {name: "Thông tin công trình"}
+      layout: key_value
+      columns:
+        - {id: ten_cong_trinh, header: "Tên công trình"}
+        - {id: hang_muc, header: "Hạng mục", required: false}
+        - {id: dia_diem, header: "Địa điểm xây dựng"}
+        - {id: chu_dau_tu, header: "Chủ đầu tư"}
+        - {id: tu_van_giam_sat, header: "Đơn vị tư vấn giám sát"}
+        - {id: nha_thau, header: "Nhà thầu thi công"}
+        - {id: hop_dong, header: "Hợp đồng thi công số", required: false}
+        - {id: noi_lap, header: "Nơi lập biên bản", required: false}
+    - id: ns
+      match: {name: "Nhân sự"}
+      columns:
+        - {id: ma, header: "Mã", type: string}
+        - {id: ho_ten, header: "Họ và tên"}
+        - {id: chuc_vu, header: "Chức vụ"}
+relationships:
+  - {id: r_ct, from: vl, to: ct}   # every row uses the project details
+  - {id: gs, from: vl, to: ns, keys: [{from: ma_giam_sat, to: ma}]}
+  - {id: kt, from: vl, to: ns, keys: [{from: ma_ky_thuat, to: ma}]}
+fields:
+  # project details (sheet 'Thông tin công trình')
+  - {name: cong_trinh.ten_cong_trinh, path: r_ct.ten_cong_trinh}
+  - {name: cong_trinh.hang_muc, path: r_ct.hang_muc, default: ""}
+  - {name: cong_trinh.dia_diem_xay_dung, path: r_ct.dia_diem}
+  - {name: cong_trinh.chu_dau_tu, path: r_ct.chu_dau_tu}
+  - {name: cong_trinh.don_vi_tu_van_giam_sat, path: r_ct.tu_van_giam_sat}
+  - {name: cong_trinh.nha_thau_thi_cong, path: r_ct.nha_thau}
+  - {name: cong_trinh.hop_dong_thi_cong_so, path: r_ct.hop_dong, default: "……"}
+  - {name: cong_trinh.noi_lap_bien_ban, path: r_ct.noi_lap, default: "……"}
+  # the material (sheet 'Vật liệu đầu vào')
+  - {name: vat_lieu.stt, source: stt}
+  - {name: vat_lieu.so_bien_ban, source: so_bien_ban}
+  - {name: vat_lieu.ten_vat_lieu, source: ten_vat_lieu}
+  - {name: vat_lieu.quy_cach_chung_loai, source: quy_cach, default: "……"}
+  - {name: vat_lieu.nha_san_xuat, source: nha_san_xuat, default: "……"}
+  - {name: vat_lieu.khoi_luong, source: khoi_luong, default: "……"}
+  - {name: vat_lieu.don_vi, source: don_vi, default: ""}
+  - {name: vat_lieu.hang_muc_su_dung, source: hang_muc_su_dung, default: "……"}
+  - {name: vat_lieu.chung_chi_chat_luong, source: chung_chi, default: "……"}
+  - {name: vat_lieu.ket_qua_thi_nghiem, source: thi_nghiem, default: "……"}
+  - {name: vat_lieu.ket_qua, source: ket_qua, default: "Đạt"}
+  - name: vat_lieu.ngay_nghiem_thu_bang_chu
+    source: ngay_nghiem_thu
+    transforms: [{format_date: {format: "ngày %d tháng %m năm %Y"}}]
+  - {name: vat_lieu.ho_ten_giam_sat, path: gs.ho_ten}
+  - {name: vat_lieu.chuc_vu_giam_sat, path: gs.chuc_vu}
+  - {name: vat_lieu.ho_ten_ky_thuat, path: kt.ho_ten}
+  - {name: vat_lieu.chuc_vu_ky_thuat, path: kt.chuc_vu}
+templates:
+  - id: bien_ban_vat_lieu
+    file: templates/BienBanNghiemThuVatLieu.docx
+    marker: {style: custom, open: "<<", close: ">>"}
+generation:
+  unit: record
+  output: merged
+output:
+  merged_filename: "VL {vat_lieu.stt} - {vat_lieu.ten_vat_lieu}.docx"
+  individual_filename: "{template.id} - {vat_lieu.stt}.docx"
+  combined_filename: "Tổng hợp nghiệm thu vật liệu.docx"

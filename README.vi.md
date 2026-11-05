@@ -9,7 +9,7 @@ Dùng được ngay cả khi không rành máy tính:
 - **Trang chủ có 3 nút lớn**:
   1. *Tạo bộ hồ sơ mới*;
   2. *Dùng bộ hồ sơ đã lưu*;
-  3. *Dùng thử hồ sơ mẫu*: hồ sơ nghiệm thu công việc xây dựng gồm file Excel, Phiếu yêu cầu nghiệm thu và Biên bản nghiệm thu.
+  3. *Dùng thử hồ sơ mẫu*: hồ sơ nghiệm thu công việc xây dựng (Phiếu yêu cầu và Biên bản nghiệm thu) và nghiệm thu vật liệu đầu vào, dùng chung một file Excel.
 - **Tạo hồ sơ nhanh** trong 4 bước:
   1. Chọn file Excel.
   2. Chọn các file Word mẫu.

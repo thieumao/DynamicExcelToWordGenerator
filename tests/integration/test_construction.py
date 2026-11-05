@@ -75,3 +75,33 @@ def test_everything_in_one_file_for_printing(construction, tmp_path):
         )
     )
     assert again.combined_path == "" and len(again.documents) == 6
+
+
+def test_materials_kit_uses_the_same_workbook(construction, tmp_path):
+    from docgen.domain.profile.io import load_profile
+    from docgen.testing.construction import MATERIALS_PROFILE_FILE
+
+    profile = load_profile(construction.directory / MATERIALS_PROFILE_FILE)
+    result = DocumentGenerationService().run(
+        GenerationRequest(profile, construction.directory, construction.workbook, tmp_path / "vl")
+    )
+    assert result.status == "completed", [str(i) for i in result.all_issues()]
+    names = sorted(Path(p).name for p in result.documents)
+    assert names == [
+        "VL 1 - Thép cốt bê tông.docx",
+        "VL 2 - Xi măng.docx",
+        "VL 3 - Cát vàng.docx",
+        "VL 4 - Đá dăm.docx",
+    ]
+    text = text_of(tmp_path / "vl" / names[0])
+    for expected in (
+        "BIÊN BẢN NGHIỆM THU VẬT LIỆU ĐẦU VÀO",
+        "Số: 01/NTVL",
+        "1. Công trình: Nhà làm việc 5 tầng – Công ty CP Đầu tư DEF",
+        "Khối lượng: 12,5 tấn – dùng cho: Cột, dầm, sàn tầng 1–2",
+        "Ông/Bà: Nguyễn Văn Hùng – Chức vụ: Kỹ sư tư vấn giám sát",
+        "4. Thời gian nghiệm thu: ngày 01 tháng 04 năm 2024, tại công trường.",
+        "– Kết quả thí nghiệm: Phiếu KQTN số 45/2024;",
+    ):
+        assert expected in text, expected
+    assert Path(result.combined_path).name == "Tổng hợp nghiệm thu vật liệu.docx"

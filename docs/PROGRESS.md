@@ -24,7 +24,7 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [x] CLI (inspect, templates scan, profile validate/schema, preview, generate, samples)
 - [x] Desktop UI (10 pages), background workers, GUI-thread GC, vi/en catalogs
 - [x] Profile repository (history, trash, import/export bundles), SQLite job history, settings
-- [x] Tests: 297 automated (unit, integration, PoC, regression incl. Office conformance, UI, architecture)
+- [x] Tests: 302 automated (unit, integration, PoC, regression incl. Office conformance, UI, architecture)
 - [x] Benchmarks with measured results; two measured optimisations
 - [x] PyInstaller onedir spec (GUI + CLI), smoke test (validated with a Linux build),
       GitHub Actions CI matrix and Windows build workflow
@@ -55,6 +55,9 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [x] Simple mode by default, home page with three actions, "try the example", plain Vietnamese
       wording, warnings-first problem list
 - [x] Windows installer (Inno Setup), built, silently installed, smoke-tested and uninstalled in CI
+- [x] Second kit: acceptance of incoming materials (same workbook, own list sheet)
+- [x] Saved sets reopen with their last Excel file and output folder; user guide inside the app;
+      application icon; THIRD_PARTY_NOTICES.txt generated in the Windows build
 - [x] Vietnamese user guide rewritten for beginners (part A) with the advanced setup in part B
 
 ## Remaining / next steps
@@ -67,8 +70,8 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [ ] Real (anonymised) customer workbooks/templates → per-customer regression tests.
 - [ ] Benchmarks on the reference Windows machine; confirm targets.
 - [ ] Code signing (company certificate), THIRD_PARTY_NOTICES.txt, legal review of LGPL obligations.
-- [ ] More construction templates from real customers (biên bản nghiệm thu vật liệu, giai đoạn,
-      lấy mẫu, nhật ký thi công…) as ready-made kits.
+- [ ] More construction templates from real customers (nghiệm thu giai đoạn, hoàn thành hạng mục,
+      lấy mẫu thí nghiệm, nhật ký thi công…) as ready-made kits.
 - [ ] UI polish: drag-and-drop ordering, editing nested collections/aggregations inside collections
       in forms (YAML editor covers them today), per-field "insert path" picker in expression editor.
 - [ ] Optional features (isolated, not core): PDF/visual preview via LibreOffice or Word,

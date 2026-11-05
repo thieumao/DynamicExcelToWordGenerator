@@ -118,6 +118,20 @@ def main() -> int:
     )
     produced = sorted(p.name for p in (work / "out_xd").glob("*.docx"))
     assert len(produced) == 7 and "Tổng hợp hồ sơ nghiệm thu.docx" in produced, produced
+    run(
+        [
+            cli,
+            "generate",
+            "--profile",
+            str(x / "profile_vat_lieu.yaml"),
+            "--excel",
+            str(x / "data" / "HoSoNghiemThu.xlsx"),
+            "--out",
+            str(work / "out_xd"),
+        ]
+    )
+    produced = sorted(p.name for p in (work / "out_xd").glob("*.docx"))
+    assert len(produced) == 12 and "Tổng hợp nghiệm thu vật liệu.docx" in produced, produced
     validate_outputs([work / "out_a", work / "out_b", work / "out_c", work / "out_xd"], work)
     env = dict(
         os.environ,
