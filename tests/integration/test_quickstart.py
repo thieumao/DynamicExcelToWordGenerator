@@ -95,6 +95,9 @@ def test_existing_form_with_blanks_and_lookups(tmp_path):
     assert suggested["Email"] == "dong.email"  # empty table cell right of the label
     assert suggested["Số CCCD"] == "dong.so_cccd"
     assert "tháng" not in suggested and "năm" not in suggested  # too generic to guess
+    photo = next(o for o in options if o.path == "dong.anh")
+    assert photo.label == "Ảnh (ảnh)" and photo.rule["type"] == "image"
+    assert suggested["anh"] == "dong.anh"  # the 3x4 photo frame (picture content control)
     # choosing the month part of the birth date is one click in the wizard
     words = [q.WordChoice("templates/PhieuThongTin.docx", scan, suggested)]
     q.apply_bindings(words, {(0, "tháng"): "dong.ngay_sinh_thang", (0, "năm"): "dong.ngay_sinh_nam"})
@@ -107,6 +110,10 @@ def test_existing_form_with_blanks_and_lookups(tmp_path):
     assert "Họ và tên: nguyễn văn ánh" in text
     assert "tháng 09 năm 1990" in text
     assert result.combined_path == ""
+    wp = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+    drawing = etree.fromstring(zipfile.ZipFile(result.documents[0]).read("word/document.xml"))
+    assert len(list(drawing.iter(wp + "extent"))) == 1  # NV01's photo in the frame
+    assert not [i for i in result.all_issues() if i.code == "template.picture_not_image"]
 
 
 def test_suggestions_never_guess_between_equal_candidates():

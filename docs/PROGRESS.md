@@ -24,7 +24,7 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [x] CLI (inspect, templates scan, profile validate/schema, preview, generate, samples)
 - [x] Desktop UI (10 pages), background workers, GUI-thread GC, vi/en catalogs
 - [x] Profile repository (history, trash, import/export bundles), SQLite job history, settings
-- [x] Tests: 283 automated (unit, integration, PoC, regression incl. Office conformance, UI, architecture)
+- [x] Tests: 297 automated (unit, integration, PoC, regression incl. Office conformance, UI, architecture)
 - [x] Benchmarks with measured results; two measured optimisations
 - [x] PyInstaller onedir spec (GUI + CLI), smoke test (validated with a Linux build),
       GitHub Actions CI matrix and Windows build workflow
@@ -45,15 +45,30 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [x] Forms re-saved by LibreOffice keep every input detectable and fillable (regression test)
 - [x] GitHub Actions: CI matrix (Windows/macOS/Linux) and the Windows build workflow run on `main`
 
+**First release – construction companies, non-IT users**
+- [x] General-information sheets (`layout: key_value`) and relationships without keys
+- [x] Construction kit: acceptance records (phiếu yêu cầu + biên bản nghiệm thu) with project details,
+      people looked up by code, Vietnamese date/time forms; combined print file
+      (`output.combined_filename`); `format_time`
+- [x] Quick start wizard: Excel + Word files → recognised sheets, automatic matching (36/38 inputs
+      on the construction kit), profile built and run in one go; photo columns become image fields
+- [x] Simple mode by default, home page with three actions, "try the example", plain Vietnamese
+      wording, warnings-first problem list
+- [x] Windows installer (Inno Setup), built, silently installed, smoke-tested and uninstalled in CI
+- [x] Vietnamese user guide rewritten for beginners (part A) with the advanced setup in part B
+
 ## Remaining / next steps
 
-- [ ] Download and test the `DocGen-windows-x64` artifact on Windows 10 and 11.
+- [ ] Install `DocGen-Setup-<version>-x64.exe` on Windows 10 and 11 office PCs (SmartScreen,
+      shortcuts, uninstall) and walk a construction user through part A of the guide.
 - [ ] Try the input-spot detection on real customer forms; tune `blank_min` defaults if needed.
 - [ ] Manual acceptance in Microsoft Word with the checklist in TEST_STRATEGY.md (automated Open XML
       SDK validation passes; opening in Word itself still needs a Windows machine with Office).
 - [ ] Real (anonymised) customer workbooks/templates → per-customer regression tests.
 - [ ] Benchmarks on the reference Windows machine; confirm targets.
-- [ ] Code signing, THIRD_PARTY_NOTICES.txt, legal review of LGPL obligations, installer (Inno Setup).
+- [ ] Code signing (company certificate), THIRD_PARTY_NOTICES.txt, legal review of LGPL obligations.
+- [ ] More construction templates from real customers (biên bản nghiệm thu vật liệu, giai đoạn,
+      lấy mẫu, nhật ký thi công…) as ready-made kits.
 - [ ] UI polish: drag-and-drop ordering, editing nested collections/aggregations inside collections
       in forms (YAML editor covers them today), per-field "insert path" picker in expression editor.
 - [ ] Optional features (isolated, not core): PDF/visual preview via LibreOffice or Word,

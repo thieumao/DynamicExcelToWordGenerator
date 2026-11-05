@@ -53,6 +53,7 @@ _MARKER = re.compile(r"<<\s*([^<>]{1,80}?)\s*>>")
 _STOP = {"va", "cua", "la", "cac", "nhung"}
 _GENERIC = {"ngay", "thang", "nam", "gio", "phut", "so", "tai", "ten", "ong", "ba", "ongba", "ky", "noi"}
 _CTX = TransformContext()
+_IMAGE_FILE = re.compile(r"\.(png|jpe?g|gif|bmp)$", re.IGNORECASE)
 
 
 # --------------------------------------------------------------- workbook
@@ -234,6 +235,8 @@ def _kind(values: Iterable[Any]) -> str:
         return "date"
     if all(isinstance(v, (int, float, Decimal)) and not isinstance(v, bool) for v in seen):
         return "integer" if all(float(v).is_integer() for v in seen) else "number"
+    if all(isinstance(v, str) and _IMAGE_FILE.search(v.strip()) for v in seen):
+        return "image"  # 'anh/NV01.png': pictures, e.g. for a 3x4 photo frame
     return "text"
 
 
@@ -263,7 +266,11 @@ def _variants(
     kind = _kind(values)
     words = "ngày %d tháng %m năm %Y"
     out: list[ValueOption] = []
-    if kind == "date":
+    if kind == "image":
+        out.append(
+            ValueOption(path, f"{label} (ảnh)", group, _sample(first, []), {**rule, "type": "image"}, names)
+        )
+    elif kind == "date":
         out.append(
             ValueOption(
                 path,

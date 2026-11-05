@@ -15,6 +15,19 @@ Excel (.xlsx/.xlsm/.xls/.csv) ──► profile: sheets · relationships · fiel
           Word templates (Jinja / <<markers>> / MERGEFIELD) ──► render ──► merge ──► verify ──► .docx
 ```
 
+## First release: construction companies, non-IT users
+
+* Windows installer (`DocGen-Setup-<version>-x64.exe`, per-user, no admin rights).
+* Home page with three actions: create a document set, use a saved one, try the example (acceptance
+  records for construction work: request + record, project details entered once, people looked up
+  by code, one file per work item plus one combined file to print).
+* **Quick start** (`application/quickstart.py`): choose the Excel file and the Word forms; the app
+  recognises the list / general-information / lookup sheets, finds what to fill in the Word files
+  and matches it by name (shown in green/yellow with examples), then builds a normal profile.
+* Simple mode by default (setup pages behind "advanced mode"), plain Vietnamese wording, Vietnamese
+  text for every error and warning.
+* Vietnamese user guide for beginners: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md) (part A).
+
 ## Highlights
 
 * Any sheet names, header positions (auto-detected or fixed), column aliases or positions.
@@ -37,15 +50,16 @@ Excel (.xlsx/.xlsm/.xls/.csv) ──► profile: sheets · relationships · fiel
 
 ```bash
 uv sync --extra gui
-uv run docgen samples samples                      # (re)create sample customers A, B and C
+uv run docgen samples samples                      # (re)create samples A, B, C and the construction kit
 uv run docgen-gui                                  # desktop app
 uv run docgen generate --profile samples/customer_a/profile.yaml \
   --excel samples/customer_a/data/HR.xlsx --out output/customer_a
 uv run pytest                                      # QT_QPA_PLATFORM=offscreen on headless Linux
 ```
 
-Windows users receive a ready-to-run folder (`DocGen.exe`, no Python needed) built by
-`.github/workflows/build-windows.yml` – see [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md).
+Windows users receive an installer (`DocGen-Setup-<version>-x64.exe`) or a ready-to-run folder
+(`DocGen.exe`, no Python needed), both built and tested by `.github/workflows/build-windows.yml` –
+see [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md).
 
 ## Documentation
 
@@ -72,7 +86,8 @@ src/docgen/infrastructure  Excel readers, Word inspector/renderer/merger/verifie
 src/docgen/ui              PySide6 desktop application
 src/docgen/cli             command-line interface
 src/docgen/testing         synthetic fixture builders and sample customers
-samples/                   customer_a (Jinja), customer_b (<<markers>>, MERGEFIELD), customer_c (existing form)
+samples/                   customer_a (Jinja), customer_b (<<markers>>, MERGEFIELD), customer_c (existing form),
+                           xay_dung_nghiem_thu (construction acceptance records)
 tests/                     unit, integration, PoC, regression, UI, architecture tests
 benchmarks/                reproducible performance measurements
 packaging/                 PyInstaller spec, entry points, smoke test

@@ -69,6 +69,24 @@ Rules:
   (header row + empty rows) are not detected as blanks; use `{%tr for %}` for those.
 * `.doc` (Word 97–2003) files must first be saved as `.docx` in Word.
 
+### Automatic matching (quick start)
+
+The quick start wizard (`application/quickstart.py`) scans each Word file with `scan_word`. The
+marker style is detected: MERGEFIELDs → `mergefield`, `<<…>>` → `custom`, `{{ }}` → `jinja`, none →
+spots only. Every input (markers in document order, then blanks, controls and form fields) gets a
+**suggested** value:
+
+* Names are compared after Vietnamese accents, case, spaces and the words *và*/*của* are removed.
+  Equal → 1.0; same words in another order → 0.95; otherwise `difflib` ratio. Each value also has
+  alternative names, e.g. "Họ và tên giám sát" for *Mã giám sát ▸ Họ và tên*, or
+  "Ngày nghiệm thu bằng chữ" for the long date form.
+* A suggestion needs a score ≥ 0.86 and a clear winner. Ties are left to the user.
+* Generic labels (`ngày`, `tháng`, `năm`, `giờ`, `số`, `tại`…) are never suggested: the user picks
+  the right date part in one click.
+
+The user sees green (matched) and yellow (not matched) rows, each with an example from the first
+Excel row. Anything left unmatched keeps the original text (blanks) or becomes empty (markers).
+
 ## 2. Inspection (before generation)
 
 `infrastructure/word/inspector.py` reads `document.xml`, headers, footers, footnotes and endnotes,
@@ -212,6 +230,14 @@ for custom markers) in addition to `{{ }}`/`{% %}`. Covered by
    is not supported by LibreOffice or most viewers.
 4. **Optional Word automation (COM)** – would give pixel-perfect merging but needs Word and Windows;
    intentionally *not* part of the core. If ever added it must stay an isolated optional plug-in.
+
+### Combined print file
+
+With `output.combined_filename`, after all units are finalised the service merges each unit's main
+document, in unit order, into one file (`infrastructure/word/merger.py`). The first is the master;
+the others are appended with `section_mode="preserve"` and a section break, so every document keeps
+its own page setup, headers and footers. The file is verified like any output. A failure is a
+warning: the separate documents are still delivered.
 
 ## 5. Output verification
 

@@ -86,6 +86,24 @@ formulas, a warning says stored results may be stale. `.xls` and `.csv` have no 
 (.xls exposes only results). Recalculating requires Excel or LibreOffice and is deliberately not
 done automatically.
 
+### General-information sheets (`layout: key_value`)
+
+Construction workbooks keep the project details once, as *label | value* lines:
+
+```yaml
+    - id: ct
+      match: {name: "Thông tin công trình"}
+      layout: key_value          # default: table
+      columns:
+        - {id: ten_cong_trinh, header: "Tên công trình"}       # header = the label
+        - {id: khoi_cong, header: "Ngày khởi công", type: date}
+```
+
+Each line whose first filled cell is text is a label; its value is the next filled cell to the
+right. Title lines and notes are ignored, and a trailing `:` is dropped. The sheet becomes **one
+record**. Formula cells are checked like in tables, and issues name the exact cell (`B7`).
+Combine it with a relationship without keys (below).
+
 ## 3. Relationships (lookups)
 
 ```yaml
@@ -116,6 +134,11 @@ relationships:
   (`on_duplicate: error`), or a warning and the first row in sheet/sort order (`warn`).
   `match: first` is an explicit, documented choice of the first row.
 * **Cardinality** – `one_to_many` returns all matching rows (for collections/aggregations).
+* **Without keys** – `keys: []` (or no `keys`) links every row to the target sheet's only row:
+  general information such as the project details (`{id: r_ct, from: dm, to: ct}`). If the sheet
+  has no data row or several rows, the issue is `lookup.single_row_missing` /
+  `lookup.single_row_expected`; no row is picked silently. With `one_to_many` every row gets all
+  rows of the target (e.g. the same list of participants in every record).
 
 ## 4. Output rules
 
@@ -221,7 +244,7 @@ Expressions are **Jinja expressions** evaluated in an immutable sandbox (no Pyth
 |---|---|
 | Text | `trim`, `collapse_spaces`, `upper`, `lower`, `title_case`, `capitalize`, `replace{old,new}`, `regex_replace{pattern,repl}`, `regex_extract{pattern,group}`, `slice{start,end}`, `pad_left{width,char}`, `pad_right`, `prefix{text}`, `suffix{text}`, `strip_accents` |
 | Type | `to_string`, `to_int`, `to_decimal`, `to_date{format}`, `to_bool` |
-| Format | `format_date{format}`, `format_datetime`, `format_number{decimals,…}`, `format_currency{symbol,decimals,position}`, `format_percent`, `format_bool{true,false}`, `number_to_words_vi{suffix,capitalize}` |
+| Format | `format_time{format}` (Excel times, `8h30`, `8:30` → `08 giờ 30` with `%H giờ %M`), `format_date{format}`, `format_datetime`, `format_number{decimals,…}`, `format_currency{symbol,decimals,position}`, `format_percent`, `format_bool{true,false}`, `number_to_words_vi{suffix,capitalize}` |
 | Logic | `default{value}`, `map_values{mapping,default,keep_unmapped}` |
 | Lists | `split`, `join`, `lines`, `first`, `last`, `count`, `sum`, `unique` |
 | Numbers/dates | `round{decimals}`, `multiply{by}`, `add{value}`, `add_days{days}` |
@@ -278,6 +301,23 @@ generation:
 | D – merged document | several templates, `output: merged` (any unit; `unit: dataset` = everything in one) |
 | E – batch merged | `unit: record` or `group`, `output: merged` |
 
+## 8a. Profiles made by the quick start
+
+The quick start (`application/quickstart.py`) writes an ordinary profile; it can be refined in the
+advanced pages. Its naming:
+
+| Item | Id / path |
+|---|---|
+| List sheet (one row = one set of documents) | sheet `ds`, fields `dong.<column>` |
+| General-information sheets | sheets `tt1`, `tt2`… (`layout: key_value`), relationships `r_tt1`… without keys, fields `chung.<label>` |
+| Lookup sheets | sheets `tc1`…, one relationship `r_<code column>` per code column, fields `tra.<code column>.<column>` |
+| Variants (created only when used) | dates: `…_bang_chu` (ngày … tháng … năm …), `…_ngay`, `…_thang`, `…_nam`; times: `…_gio` (08 giờ 30); numbers ≥ 1000: `…_bang_chu`, integers: `…_phan_cach` (1.234.567); file names `*.png/jpg…`: `type: image` |
+| Templates | id from the file name, marker style detected (`custom <<…>>`, `mergefield` or `jinja`), `bindings` = the user's choices, `missing_placeholder: empty` (unmatched inputs were left empty on purpose) |
+| Output | `merged_filename: "{unit.index:02d} - {dong.<name column>}.docx"`, optional `combined_filename` |
+
+Lookups are detected when a unique column of another sheet contains at least 80 % of the values of a
+list column. Sequences 1, 2, 3… (STT) are never treated as codes.
+
 ## 9. Output naming
 
 ```yaml
@@ -288,6 +328,11 @@ output:
   on_conflict: suffix   # suffix | skip | error | overwrite
   max_path_length: 240
 ```
+
+`combined_filename` (optional, e.g. `"Tổng hợp - {profile.name}.docx"`) additionally merges every
+generated document, in unit order, into one file to print (each document keeps its own sections).
+The Generate page and the CLI (`--combined` / `--no-combined`) can switch it for one run. If it
+fails, a warning is reported and the separate documents are kept.
 
 `/` in the *pattern* creates sub-folders; `/` or `\` inside *values* is replaced so data cannot
 create folders. Names are sanitised for Windows (reserved names such as `CON`, invalid characters,

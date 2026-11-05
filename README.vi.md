@@ -2,6 +2,29 @@
 
 Ứng dụng desktop chạy **offline** (ưu tiên Windows, phát triển trên macOS). Ứng dụng đọc file Excel nhiều sheet của khách hàng, tra cứu mã/ID qua các sheet tham chiếu, rồi điền dữ liệu vào các file Word mẫu. Kết quả có thể là từng tài liệu riêng hoặc một tài liệu gộp. Mọi khác biệt giữa các khách hàng nằm trong **profile** (file YAML), nên đổi khách hàng không cần sửa code.
 
+## Dành cho ngành Xây dựng (bản phát hành đầu tiên)
+
+Dùng được ngay cả khi không rành máy tính:
+- **Bộ cài Windows** `DocGen-Setup-…-x64.exe`: bấm đúp → *Next*. Không cần quyền admin, không cần Internet, không cần cài Office.
+- **Trang chủ có 3 nút lớn**:
+  1. *Tạo bộ hồ sơ mới*;
+  2. *Dùng bộ hồ sơ đã lưu*;
+  3. *Dùng thử hồ sơ mẫu*: hồ sơ nghiệm thu công việc xây dựng gồm file Excel, Phiếu yêu cầu nghiệm thu và Biên bản nghiệm thu.
+- **Tạo hồ sơ nhanh** trong 4 bước:
+  1. Chọn file Excel.
+  2. Chọn các file Word mẫu.
+  3. Kiểm tra chỗ cần điền: ứng dụng **tự ghép**, màu xanh là đã ghép, màu vàng là chưa ghép, có giá trị ví dụ.
+  4. Tạo tài liệu.
+
+  Không phải cấu hình gì.
+- **Thông tin công trình nhập một lần** (sheet "tên mục | nội dung"), dùng cho mọi biên bản. Họ tên, chức vụ được tra theo mã (GS01, KT01…).
+- Ngày, giờ kiểu biên bản: `ngày 02 tháng 04 năm 2024`, `08 giờ 00`.
+- Mỗi công việc một file Word, kèm **một file tổng hợp để in** tất cả.
+- Mọi thông báo lỗi bằng tiếng Việt, chỉ rõ sheet, dòng, cột và cách sửa.
+- Các trang cấu hình chi tiết chỉ hiện khi bật *Chế độ nâng cao*.
+
+Hướng dẫn từng bước: [docs/HUONG_DAN_SU_DUNG.md](docs/HUONG_DAN_SU_DUNG.md) (phần A).
+
 ## Tính năng chính
 
 **Đọc Excel**
@@ -34,13 +57,13 @@
 
 ```bash
 uv sync --extra gui
-uv run docgen samples samples          # tạo lại dữ liệu mẫu customer_a, customer_b, customer_c
+uv run docgen samples samples          # tạo lại dữ liệu mẫu (customer_a/b/c, xay_dung_nghiem_thu)
 uv run docgen-gui                      # mở ứng dụng desktop
-uv run docgen generate --profile samples/customer_a/profile.yaml \
-  --excel samples/customer_a/data/HR.xlsx --out output/customer_a
+uv run docgen generate --profile samples/xay_dung_nghiem_thu/profile.yaml \
+  --excel samples/xay_dung_nghiem_thu/data/HoSoNghiemThu.xlsx --out output/nghiem_thu
 ```
 
-Người dùng Windows nhận một thư mục chạy được ngay (`DocGen.exe`), không cần cài Python. Bản này được build tự động bằng GitHub Actions; xem [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md).
+Người dùng Windows nhận bộ cài `DocGen-Setup-…-x64.exe` (hoặc thư mục `DocGen.exe` chạy được ngay), không cần cài Python. Cả hai được build và kiểm tra tự động bằng GitHub Actions; xem [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md).
 
 ## Tài liệu
 
