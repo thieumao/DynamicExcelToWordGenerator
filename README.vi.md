@@ -16,7 +16,7 @@
 
 **Word**
 - Hỗ trợ 3 kiểu đánh dấu: `{{ ... }}` (Jinja), `<<...>>` tự định nghĩa, và MERGEFIELD.
-- Dùng được **file Word có sẵn của khách hàng** mà không cần đánh dấu. Ứng dụng tự tìm các chỗ trống sau nhãn (`Họ và tên: ......`), ô bảng trống cạnh ô nhãn, ô nhập liệu (content control) và form field. Chỗ nào được gắn với dữ liệu thì được điền; chỗ không gắn (chữ ký, ô dành cho cán bộ) giữ nguyên.
+- Dùng được **file Word có sẵn của khách hàng** mà không cần đánh dấu. Ứng dụng tự tìm các chỗ trống sau nhãn (`Họ và tên: ......`), ô bảng trống cạnh ô nhãn, ô nhập liệu (content control), form field, ô đánh dấu, danh sách chọn và khung ảnh. Chỗ nào được gắn với dữ liệu thì được điền; chỗ không gắn (chữ ký, ô dành cho cán bộ) giữ nguyên.
 - Người dùng tự chọn file Word ngay trong ứng dụng: nút *Nhập…* ở trang Template Word, hoặc *Thêm file Word…* ở trang Sinh tài liệu.
 - Gộp nhiều template thành một tài liệu mà vẫn giữ hướng trang, lề, header/footer riêng của từng phần.
 
@@ -26,7 +26,7 @@
 - Có báo cáo audit dạng JSON và CSV.
 
 **Giao diện**
-- Tiếng Việt và tiếng Anh.
+- Tiếng Việt (mặc định) và tiếng Anh. Mọi thông báo lỗi, cảnh báo và gợi ý sửa đều có tiếng Việt, kèm chi tiết sheet, dòng, cột.
 - Thiết kế mapping trực quan, xem trước kèm truy vết từng giá trị về ô Excel gốc.
 - Có thanh tiến trình, cho phép hủy giữa chừng, UI không bị treo.
 

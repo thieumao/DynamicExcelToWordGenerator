@@ -17,7 +17,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from docx.shared import Mm
+from docx.image.exceptions import InvalidImageStreamError, UnexpectedEndOfFileError, UnrecognizedImageError
+from docx.image.image import Image as DocxImage
+from docx.shared import Emu, Mm
 from docxtpl import DocxTemplate, InlineImage
 from jinja2.exceptions import TemplateError
 
@@ -28,6 +30,7 @@ from docgen.domain.mapping.expressions import ExpressionError, make_environment
 from docgen.domain.mapping.transforms import DEFAULT_REGISTRY, TransformContext, format_decimal
 from docgen.domain.profile.models import MissingPolicy
 from docgen.infrastructure.fs.safety import is_within
+from docgen.infrastructure.word.spots import FORM_FILTERS
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
 
@@ -67,6 +70,29 @@ def _finalizer(tctx: TransformContext) -> Any:
     return finalize
 
 
+def picture_fit(value: Any, cx: int, cy: int) -> Any:
+    """Fit an image placed in a picture content control into the control's frame (EMU).
+
+    The aspect ratio is kept. An explicit width/height on the image field wins; values that
+    are not images (empty or text) are returned unchanged.
+    """
+    if not isinstance(value, InlineImage) or value.width or value.height or cx <= 0 or cy <= 0:
+        return value
+    try:
+        image = DocxImage.from_file(value.image_descriptor)
+    except (OSError, UnrecognizedImageError, InvalidImageStreamError, UnexpectedEndOfFileError):
+        return value
+    if not image.width or not image.height:
+        return value
+    scale = min(cx / image.width, cy / image.height)
+    return InlineImage(
+        value.tpl,
+        image_descriptor=value.image_descriptor,
+        width=Emu(round(image.width * scale)),
+        height=Emu(round(image.height * scale)),
+    )
+
+
 class TemplateRenderer:
     """Reusable renderer; create one per worker thread/process."""
 
@@ -78,6 +104,8 @@ class TemplateRenderer:
             registry=DEFAULT_REGISTRY, ctx=self.tctx, sink=self._missing, autoescape=True
         )
         self.env.finalize = _finalizer(self.tctx)
+        self.env.filters.update(FORM_FILTERS)
+        self.env.filters["picture_fit"] = picture_fit
 
     def render(
         self,
@@ -94,7 +122,19 @@ class TemplateRenderer:
         self._missing.clear()
         try:
             tpl.render(prepared, jinja_env=self.env, autoescape=True)
-        except (TemplateError, ExpressionError) as exc:
+        except ExpressionError as exc:  # a value that cannot be placed (e.g. not a drop-down choice)
+            issue = make_issue(
+                "render.value_error",
+                Severity.ERROR,
+                Category.RENDER,
+                f"Cannot fill the document: {exc}",
+                suggestion="Check the value in Excel, or convert it on the field with a "
+                "'map_values' transform.",
+                template=template_id,
+                detail=str(exc),
+            )
+            raise RenderError(str(issue), [*issues, issue]) from exc
+        except TemplateError as exc:
             lines = getattr(exc, "docx_context", None)
             near = " | ".join(x.strip() for x in lines if x.strip())[:200] if lines else ""
             issue = make_issue(
@@ -105,6 +145,7 @@ class TemplateRenderer:
                 suggestion="Check the Jinja tags in the Word template (matching endif/endfor, "
                 "{%tr %} in table rows, {%p %} alone in a paragraph).",
                 template=template_id,
+                detail=str(exc) + (f" – '{near}'" if near else ""),
             )
             raise RenderError(str(issue), [*issues, issue]) from exc
         missing = sorted(set(self._missing))
@@ -164,6 +205,7 @@ class TemplateRenderer:
                     problem,
                     suggestion="Check the image path in Excel and the field's image.base_dir.",
                     template=template_id,
+                    detail=problem,
                 )
             )
             return ""

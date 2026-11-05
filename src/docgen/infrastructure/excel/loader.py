@@ -210,6 +210,7 @@ class WorkbookLoader:
                         suggestion="Verify the header row in the Excel page or fix it manually.",
                         sheet=info.name,
                         row=header_row,
+                        confidence=f"{confidence:.0%}",
                     )
                 )
 
@@ -299,6 +300,7 @@ class WorkbookLoader:
                                 sheet=sheet_name,
                                 column=spec.header,
                                 rule=f"{cfg.id}.{spec.id}",
+                                positions=", ".join(column_letter(h) for h in hits),
                             )
                         )
                         continue
@@ -318,6 +320,8 @@ class WorkbookLoader:
                             sheet=sheet_name,
                             column=spec.header,
                             rule=f"{cfg.id}.{spec.id}",
+                            position=column_letter(pos),
+                            found="" if found is None else str(found),
                         )
                     )
             if index is None:
@@ -375,6 +379,7 @@ class WorkbookLoader:
                         Category.FORMULA,
                         f"Cell contains the Excel error {value}",
                         suggestion="Fix the formula in Excel.",
+                        value=str(value),
                         sheet=sheet,
                         row=row,
                         column=binding.header,
@@ -495,5 +500,6 @@ class WorkbookLoader:
                     f"{missing_reported - 500} more formula cells without stored results in "
                     f"sheet '{table.sheet_name}'",
                     sheet=table.sheet_name,
+                    count=missing_reported - 500,
                 )
             )

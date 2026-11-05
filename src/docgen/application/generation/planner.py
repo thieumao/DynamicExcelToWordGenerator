@@ -119,6 +119,7 @@ def plan_units(
                         row=result.excel_row,
                         sheet=table.sheet_name,
                         rule="generation.filter",
+                        detail=str(exc),
                     )
                 )
         record_issues[ri] = rec_issues

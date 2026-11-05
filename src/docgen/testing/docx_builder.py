@@ -7,6 +7,7 @@ python-docx plus a little raw OOXML for features python-docx has no API for
 
 from __future__ import annotations
 
+import io
 import struct
 import zlib
 from collections.abc import Sequence
@@ -280,9 +281,33 @@ def _sdt_properties(tag: str | None, alias: str | None, kind: str, items: tuple[
             st.set(qn("w14:font"), "MS Gothic")
             box.append(st)
         pr.append(box)
+    elif kind == "picture":
+        pr.append(OxmlElement("w:picture"))
     else:
         pr.append(OxmlElement("w:text"))
     return pr
+
+
+def add_picture_content_control(
+    paragraph: Paragraph,
+    tag: str,
+    placeholder_image: Path | bytes,
+    *,
+    alias: str | None = None,
+    width_mm: float = 30,
+    height_mm: float = 40,
+) -> None:
+    """Append a picture content control (a photo frame) as Word writes it."""
+    run = paragraph.add_run()
+    image = io.BytesIO(placeholder_image) if isinstance(placeholder_image, bytes) else str(placeholder_image)
+    run.add_picture(image, width=Mm(width_mm), height=Mm(height_mm))
+    r = run._r
+    sdt = OxmlElement("w:sdt")
+    sdt.append(_sdt_properties(tag, alias, "picture", ()))
+    content = OxmlElement("w:sdtContent")
+    r.addprevious(sdt)
+    content.append(r)
+    sdt.append(content)
 
 
 def add_content_control(
@@ -331,7 +356,15 @@ def add_block_content_control(
     body.insert(len(body) - 1, sdt)  # before the body sectPr
 
 
-def _form_field(paragraph: Paragraph, name: str, kind: str, result: str, checked: bool = False) -> None:
+def _form_field(
+    paragraph: Paragraph,
+    name: str,
+    kind: str,
+    result: str,
+    checked: bool = False,
+    items: tuple[str, ...] = (),
+    selected: int = 0,
+) -> None:
     def run_with(*children: Any) -> Any:
         r = OxmlElement("w:r")
         for child in children:
@@ -352,6 +385,16 @@ def _form_field(paragraph: Paragraph, name: str, kind: str, result: str, checked
         default.set(qn("w:val"), "1" if checked else "0")
         box.append(default)
         ff.append(box)
+    elif kind == "FORMDROPDOWN":
+        dd = OxmlElement("w:ddList")
+        res = OxmlElement("w:result")
+        res.set(qn("w:val"), str(selected))
+        dd.append(res)
+        for item in items:
+            entry = OxmlElement("w:listEntry")
+            entry.set(qn("w:val"), item)
+            dd.append(entry)
+        ff.append(dd)
     else:
         ff.append(OxmlElement("w:textInput"))
     begin.append(ff)
@@ -381,3 +424,8 @@ def add_form_text(paragraph: Paragraph, name: str, result: str = " " * 5) -> N
 def add_form_checkbox(paragraph: Paragraph, name: str, *, checked: bool = False) -> None:
     """Append a legacy check box form field (FORMCHECKBOX) named *name*."""
     _form_field(paragraph, name, "FORMCHECKBOX", "", checked)
+
+
+def add_form_dropdown(paragraph: Paragraph, name: str, items: tuple[str, ...], *, selected: int = 0) -> None:
+    """Append a legacy drop-down form field (FORMDROPDOWN) as Word writes it (no result runs)."""
+    _form_field(paragraph, name, "FORMDROPDOWN", "", items=items, selected=selected)

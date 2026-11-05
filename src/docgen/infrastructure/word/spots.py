@@ -5,11 +5,14 @@ detected and, when bound to data, turned into ``{{ b["name"] }}`` placeholders o
 internal compiled copy (the customer's file is never modified):
 
 * ``content_control`` – Word content controls (``w:sdt``): plain/rich text, date,
-  drop-down/combo box and check box. Named by their *tag*, else *title (alias)*.
+  drop-down/combo box, check box and picture (the frame's picture is replaced by the
+  image from Excel, fitted into the frame). Named by their *tag*, else *title (alias)*.
   The control is kept (still a form in the output); only its content is filled and its
   "showing placeholder" state is cleared.
-* ``form_field`` – legacy form fields: ``FORMTEXT`` (result text replaced) and
-  ``FORMCHECKBOX`` (checked state set). Named by the field's bookmark name.
+* ``form_field`` – legacy form fields: ``FORMTEXT`` (result text replaced),
+  ``FORMCHECKBOX`` (checked state set) and ``FORMDROPDOWN`` (the entry equal to the value
+  is selected; a value that is not one of the entries is an error, never a guess).
+  Named by the field's bookmark name.
 * ``blank`` – a run of dots/underscores/ellipsis (or underlined spaces) after a label,
   e.g. ``Họ và tên: ..........`` or ``ngày ..... tháng ..... năm .....``, and an empty
   table cell to the right of a label cell. Named by the label text; repeated labels get
@@ -22,18 +25,25 @@ callback accepts it (i.e. the user bound it to a field), so blanks that must sta
 
 from __future__ import annotations
 
+import base64
 import io
+import json
 import re
 import zipfile
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, field
+from typing import Any
 
+from jinja2 import Undefined
 from lxml import etree
 
+from docgen.domain.data import values as V
+from docgen.domain.mapping.expressions import ExpressionError
 from docgen.infrastructure.word.markers import XML_NS, binding_tag, w
 
 W14 = "http://schemas.microsoft.com/office/word/2010/wordml"
+WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 _TEXT_PART = re.compile(r"^word/(document|header\d*|footer\d*|footnotes|endnotes)\.xml$")
 _PARSER = etree.XMLParser(resolve_entities=False, no_network=True, remove_blank_text=False)
 _FORM = re.compile(r"^\s*(FORMTEXT|FORMCHECKBOX|FORMDROPDOWN)\b", re.IGNORECASE)
@@ -74,6 +84,59 @@ class SpotResult:
 
 
 FillDecision = Callable[[Spot], bool]
+
+
+# ------------------------------------------- render-time filters (drop-downs)
+def encode_choices(choices: list[str]) -> str:
+    """Choices embedded in a template expression; URL-safe base64 survives XML and docxtpl."""
+    return base64.urlsafe_b64encode(json.dumps(choices, ensure_ascii=False).encode("utf-8")).decode("ascii")
+
+
+def _decode_choices(encoded: str) -> list[str]:
+    return [str(c) for c in json.loads(base64.urlsafe_b64decode(encoded.encode("ascii")).decode("utf-8"))]
+
+
+def match_choice(value: Any, choices: list[str]) -> int | None:
+    """Index of the choice equal to *value*: exact, then ignoring case/spaces, then accents."""
+    text = V.to_text(value).strip()
+    for strip in (None, False, True):
+        if strip is None:
+            hits = [i for i, c in enumerate(choices) if c.strip() == text]
+        else:
+            key = V.normalize_label(text, accents=strip)
+            hits = [i for i, c in enumerate(choices) if V.normalize_label(c, accents=strip) == key]
+        if len(hits) == 1 or (hits and strip is None):
+            return hits[0]
+    return None
+
+
+def _choice(value: Any, name: str, encoded: str, default: int) -> int:
+    choices = _decode_choices(encoded)
+    if isinstance(value, Undefined) or V.is_empty(value):
+        return default if 0 <= default < len(choices) else 0
+    index = match_choice(value, choices)
+    if index is None:
+        raise ExpressionError(
+            f"value '{V.to_text(value)}' is not one of the choices of drop-down '{name}' "
+            f"({' / '.join(choices)})"
+        )
+    return index
+
+
+def dropdown_index(value: Any, name: str, encoded: str, default: int = 0) -> str:
+    return str(_choice(value, name, encoded, default))
+
+
+def dropdown_text(value: Any, name: str, encoded: str, default: int = 0) -> str:
+    choices = _decode_choices(encoded)
+    return choices[_choice(value, name, encoded, default)] if choices else ""
+
+
+FORM_FILTERS: dict[str, Callable[..., str]] = {
+    "dropdown_index": dropdown_index,
+    "dropdown_text": dropdown_text,
+}
+"""Jinja filters the renderer must provide for filled drop-down form fields."""
 
 
 def _clean_name(text: str) -> str:
@@ -181,6 +244,9 @@ def _fill_sdt(sdt: etree._Element, name: str, subtype: str) -> None:
         if w("fullDate") in date.attrib:
             del date.attrib[w("fullDate")]
     _strip_placeholder_style(content)
+    if subtype == "picture":
+        _fill_picture(content, name)
+        return
     if subtype == "checkbox":
         box = pr.find(f"{{{W14}}}checkbox")
         assert box is not None
@@ -207,17 +273,34 @@ def _fill_sdt(sdt: etree._Element, name: str, subtype: str) -> None:
     content.append(_new_run(text))  # run-level control
 
 
+def _fill_picture(content: etree._Element, name: str) -> None:
+    """Replace the frame's placeholder picture by the bound image, fitted into the frame."""
+    drawing = content.find(f".//{w('drawing')}")
+    extent = drawing.find(f".//{{{WP}}}extent") if drawing is not None else None
+    cx = int(extent.get("cx", "0")) if extent is not None else 0
+    cy = int(extent.get("cy", "0")) if extent is not None else 0
+    text = "{{ b['" + name + "'] | picture_fit(" + f"{cx}, {cy}" + ") }}"
+    run = _ancestor(drawing, w("r")) if drawing is not None else None
+    if run is not None:
+        run.addprevious(_new_run(text, run.find(w("rPr"))))
+        parent = run.getparent()
+        assert parent is not None
+        parent.remove(run)
+        return
+    paragraph = content.find(f".//{w('p')}")
+    (paragraph if paragraph is not None else content).append(_new_run(text))
+
+
 def _paragraph_context(el: etree._Element, mark: etree._Element | None = None) -> str:
     p = el if el.tag == w("p") else _ancestor(el, w("p"))
     if p is None:
         return ""
     parts: list[str] = []
-    for t in p.iter(w("t")):
-        if mark is not None and _ancestor(t, mark.tag) is mark:
-            if not parts or parts[-1] != "[…]":
-                parts.append("[…]")
-            continue
-        parts.append(t.text or "")
+    for node in p.iter(w("t"), mark.tag if mark is not None else w("t")):
+        if node is mark:
+            parts.append("[…]")  # the input itself, even when it holds no text (pictures)
+        elif node.tag == w("t") and (mark is None or _ancestor(node, mark.tag) is not mark):
+            parts.append(node.text or "")
     return _short("".join(parts))
 
 
@@ -233,9 +316,6 @@ def _content_controls(
         if pr is None:
             continue
         subtype = _sdt_subtype(pr)
-        if subtype == "picture":
-            result.problems.append(f"{part}: picture content controls are not filled (use an image field)")
-            continue
         tag = pr.find(w("tag"))
         alias = pr.find(w("alias"))
         raw = (tag.get(w("val")) if tag is not None else None) or (
@@ -303,15 +383,24 @@ def _form_fields(
                 counter[0] += 1
                 name = f"field_{counter[0]}"
             context = _short(_paragraph_context(p))
+            dd = ff.find(w("ddList")) if ff is not None else None
+            choices = [e.get(w("val"), "") for e in dd.findall(w("listEntry"))] if dd is not None else []
             if kind == "FORMDROPDOWN":
-                result.problems.append(
-                    f"{part}: drop-down form field '{name}' is not supported (left unchanged)"
-                )
-                continue
-            subtype = "checkbox" if kind == "FORMCHECKBOX" else "text"
+                if dd is None or not choices:
+                    result.problems.append(
+                        f"{part}: drop-down form field '{name}' has no choices (left unchanged)"
+                    )
+                    continue
+                context = _short(f"{context} [{' / '.join(choices)}]")
+                subtype = "dropdown"
+            else:
+                subtype = "checkbox" if kind == "FORMCHECKBOX" else "text"
             spot = Spot(name, KIND_FORM_FIELD, subtype, part, context)
             if fill(spot):
-                if subtype == "checkbox":
+                if subtype == "dropdown":
+                    assert dd is not None
+                    _fill_form_dropdown(runs, dd, name, choices)
+                elif subtype == "checkbox":
                     box = ff.find(w("checkBox")) if ff is not None else None
                     if box is None:
                         result.problems.append(f"{part}: check box form field '{name}' has no checkBox data")
@@ -327,6 +416,29 @@ def _form_fields(
                 changed = True
             result.spots.append(spot)
     return changed
+
+
+def _fill_form_dropdown(
+    runs: list[etree._Element], dd: etree._Element, name: str, choices: list[str]
+) -> None:
+    selected = dd.find(w("result"))
+    if selected is None:
+        default_el = dd.find(w("default"))
+        current = default_el.get(w("val"), "0") if default_el is not None else "0"
+        selected = etree.Element(w("result"))
+        dd.insert(0, selected)  # CT_DDList: result, default, listEntry*
+    else:
+        current = selected.get(w("val"), "0")
+    default = int(current) if current.isdigit() else 0
+    args = f"'{name}', '{encode_choices(choices)}', {default}"
+    selected.set(w("val"), "{{ b['" + name + "'] | dropdown_index(" + args + ") }}")
+    # Word shows the selected entry; some editors also write it as result text - keep that in step
+    for i, run in enumerate(runs):
+        fld = run.find(w("fldChar"))
+        if fld is not None and fld.get(w("fldCharType")) == "separate":
+            nodes = [t for r in runs[i + 1 : -1] for t in r.findall(w("t"))]
+            _fill_text_nodes(nodes, "{{ b['" + name + "'] | dropdown_text(" + args + ") }}")
+            break
 
 
 def _fill_form_text(runs: list[etree._Element], name: str) -> None:

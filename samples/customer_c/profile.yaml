@@ -5,8 +5,8 @@ profile:
   version: 1
   description: >
     The customer's Word file is an existing form without placeholders: blanks after labels,
-    content controls, legacy form fields and a label/value table. Bindings map each input to
-    an Excel field; unbound inputs (signature, date of signing) stay empty.
+    content controls, legacy form fields (text, check box, drop-down) and a label/value table.
+    Bindings map each input to an Excel field; unbound inputs (signature, date) stay empty.
 excel:
   primary: ds
   sheets:
@@ -26,6 +26,8 @@ excel:
         - {id: dang_vien, header: "Đảng viên"}
         - {id: ket_hon, header: "Đã kết hôn"}
         - {id: mst, header: "MST", type: string, required: false}
+        - {id: gioi_tinh, header: "Giới tính"}
+        - {id: anh, header: "Ảnh", required: false}
     - id: pb
       match: {name: "Phòng ban"}
       columns:
@@ -55,6 +57,8 @@ fields:
   - {name: nhan_vien.dang_vien, source: dang_vien}
   - {name: nhan_vien.ket_hon, source: ket_hon}
   - {name: nhan_vien.mst, source: mst, default: "(chưa có)"}
+  - {name: nhan_vien.gioi_tinh, source: gioi_tinh}
+  - {name: nhan_vien.anh, source: anh, type: image}   # path relative to the Excel file
 templates:
   - id: phieu
     file: templates/PhieuThongTin.docx
@@ -74,6 +78,8 @@ templates:
       dang_vien: nhan_vien.dang_vien
       MST: nhan_vien.mst
       KetHon: nhan_vien.ket_hon
+      GioiTinh: nhan_vien.gioi_tinh
+      anh: nhan_vien.anh
 generation:
   unit: record
   output: separate

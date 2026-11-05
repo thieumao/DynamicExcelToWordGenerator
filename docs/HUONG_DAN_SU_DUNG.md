@@ -49,8 +49,8 @@ Không cần sửa file Word của khách hàng. Ứng dụng tự tìm 3 loại
 | Loại chỗ nhập | Ví dụ trong file Word | Tên hiển thị trong ứng dụng |
 |---|---|---|
 | **Chỗ trống sau nhãn** | `Họ và tên: ..................`, `Sinh ngày ...... tháng ...... năm ........`, `Địa chỉ: ________`, gạch chân khoảng trắng; ô bảng trống nằm bên phải ô nhãn (`Số CCCD │ [trống]`) | Chữ của nhãn: `Họ và tên`, `tháng`; nhãn lặp lại lần sau sẽ là `tháng (2)` |
-| **Ô nhập liệu (content control)** | Tạo bằng Developer → Controls: ô chữ, ô ngày, danh sách chọn, ô đánh dấu ☐ | *Tag* của ô, nếu không có tag thì dùng *Title* |
-| **Form field kiểu cũ** | Ô chữ / ô đánh dấu của Legacy Forms | Tên bookmark của field |
+| **Ô nhập liệu (content control)** | Tạo bằng Developer → Controls: ô chữ, ô ngày, danh sách chọn, ô đánh dấu ☐, **khung ảnh** | *Tag* của ô, nếu không có tag thì dùng *Title* |
+| **Form field kiểu cũ** | Ô chữ, ô đánh dấu, **danh sách chọn** của Legacy Forms | Tên bookmark của field |
 
 Cách dùng:
 1. Mở trang **Template Word** và chọn file. Bảng hiện từng chỗ nhập kèm loại, trạng thái (*sẽ được điền* / *giữ nguyên*) và **nội dung xung quanh**, để bạn biết `tháng` nào là tháng sinh, `tháng` nào là ngày ký.
@@ -58,12 +58,14 @@ Cách dùng:
 3. Chỗ trống **chỉ được điền khi bạn đã gắn**. Dòng chữ ký, "Hà Nội, ngày ... tháng ... năm ...", ô "dành cho cán bộ"… mà bạn không gắn thì được giữ nguyên như file gốc.
 4. Ô nhập liệu và form field có tag hoặc tên trùng với tên trường thì được tự gắn. Ứng dụng có thông báo để bạn kiểm tra.
 5. Ô đánh dấu nhận giá trị kiểu `Có/Không`, `x`, `1/0`, `TRUE/FALSE`: có giá trị thì thành ☒, để trống hoặc "Không" thì thành ☐.
+6. **Danh sách chọn kiểu cũ** (ví dụ Giới tính: Nam / Nữ): ứng dụng chọn mục trùng với giá trị Excel, không phân biệt chữ hoa/thường ("nữ" → "Nữ"). Nếu giá trị không có trong danh sách (ví dụ Excel ghi "F"), tài liệu của dòng đó báo lỗi chứ không chọn bừa. Khi đó thêm bước biến đổi *map_values* cho trường (F → Nữ, M → Nam) ở trang Thiết kế mapping. Ô Excel trống thì giữ mục đang chọn sẵn trong file.
+7. **Khung ảnh** (ví dụ ảnh 3x4): gắn với một trường kiểu **image**; ô Excel ghi tên hoặc đường dẫn file ảnh, tính từ thư mục chứa file Excel, ví dụ `anh/NV01.png`. Ảnh được co giãn vừa khung, giữ đúng tỉ lệ. Dòng nào không có ảnh thì khung để trống.
 
 Nếu chỗ trống ngắn quá không được nhận ra, hoặc dấu chấm trong câu bị nhận nhầm, chỉnh ô *số dấu chấm/gạch tối thiểu* (mặc định 5) rồi bấm *Áp dụng và quét lại*. Có thể tắt từng loại ở *Nhận diện thêm*.
 
 Định dạng chữ của nhãn và chỗ trống được giữ nguyên. Ô nhập liệu vẫn là ô nhập liệu trong file kết quả, nên người dùng có thể sửa tiếp trong Word.
 
-**Chưa hỗ trợ:** danh sách chọn kiểu cũ (FORMDROPDOWN) và ô ảnh (picture content control). Hai loại này được báo lại và giữ nguyên. Bảng kiểu danh sách (một dòng tiêu đề, nhiều dòng trống) cần dùng `{%tr for %}` (xem bên dưới).
+**Lưu ý:** bảng kiểu danh sách (một dòng tiêu đề, nhiều dòng trống) không được nhận là chỗ trống; hãy dùng `{%tr for %}` (xem bên dưới).
 
 ### Bảng có số dòng thay đổi (mỗi dự án một dòng)
 

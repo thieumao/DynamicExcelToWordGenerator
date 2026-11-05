@@ -24,7 +24,7 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [x] CLI (inspect, templates scan, profile validate/schema, preview, generate, samples)
 - [x] Desktop UI (10 pages), background workers, GUI-thread GC, vi/en catalogs
 - [x] Profile repository (history, trash, import/export bundles), SQLite job history, settings
-- [x] Tests: 176 automated (unit, integration, PoC, regression incl. Office conformance, UI, architecture)
+- [x] Tests: 283 automated (unit, integration, PoC, regression incl. Office conformance, UI, architecture)
 - [x] Benchmarks with measured results; two measured optimisations
 - [x] PyInstaller onedir spec (GUI + CLI), smoke test (validated with a Linux build),
       GitHub Actions CI matrix and Windows build workflow
@@ -34,17 +34,21 @@ Last update: 2026-11-05 (version 0.1.0, branch `main`).
 - [x] Templates re-saved by LibreOffice: found and fixed silently unfilled «Name» merge fields;
       style-specific leftover-marker verification
 - [x] Existing customer Word forms: detection and filling of blanks after labels, empty label/value
-      table cells, content controls (text/date/drop-down/check box) and legacy form fields; only
+      table cells, content controls (text/date/drop-down/check box/picture) and legacy form fields
+      (text/check box/drop-down); only
       bound inputs are filled, unbound ones stay untouched; Templates page lists every input with
       its surrounding text and a field picker; "Add Word files…" on the Generate page; sample
       customer C; `templates scan` lists inputs
+- [x] Every error/warning message (87 kinds) and its hint is available in Vietnamese with its
+      details; a test fails when a new message has no Vietnamese text or misses a parameter;
+      the CSV report and the Templates/Mapping pages show the Vietnamese text
+- [x] Forms re-saved by LibreOffice keep every input detectable and fillable (regression test)
 - [x] GitHub Actions: CI matrix (Windows/macOS/Linux) and the Windows build workflow run on `main`
 
 ## Remaining / next steps
 
 - [ ] Download and test the `DocGen-windows-x64` artifact on Windows 10 and 11.
 - [ ] Try the input-spot detection on real customer forms; tune `blank_min` defaults if needed.
-      Not supported yet: legacy drop-down form fields, picture content controls.
 - [ ] Manual acceptance in Microsoft Word with the checklist in TEST_STRATEGY.md (automated Open XML
       SDK validation passes; opening in Word itself still needs a Windows machine with Office).
 - [ ] Real (anonymised) customer workbooks/templates → per-customer regression tests.

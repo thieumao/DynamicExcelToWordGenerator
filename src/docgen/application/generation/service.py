@@ -224,7 +224,9 @@ class DocumentGenerationService:
             issue = (
                 exc.issue
                 if isinstance(exc, FailFastError)
-                else make_issue("job.too_many_errors", Severity.ERROR, Category.VALIDATION, str(exc))
+                else make_issue(
+                    "job.too_many_errors", Severity.ERROR, Category.VALIDATION, str(exc), detail=str(exc)
+                )
             )
             if issue not in result.issues:
                 result.issues.append(issue)
@@ -255,6 +257,7 @@ class DocumentGenerationService:
                             Severity.WARNING,
                             Category.OUTPUT,
                             f"Audit report could not be written: {exc}",
+                            detail=str(exc),
                         )
                     )
         return result
@@ -414,7 +417,7 @@ class DocumentGenerationService:
     def _fatal(
         self, result: JobResult, code: str, message: str, category: Category = Category.CONFIG
     ) -> None:
-        result.issues.append(make_issue(code, Severity.ERROR, category, message))
+        result.issues.append(make_issue(code, Severity.ERROR, category, message, detail=message))
 
     def _plan_outcomes(self, session: JobSession, result: JobResult) -> None:
         assert session.plan is not None
@@ -465,6 +468,7 @@ class DocumentGenerationService:
                     Category.EXPRESSION,
                     str(exc),
                     template=tpl.spec.id,
+                    detail=str(exc),
                 )
             )
             return False
@@ -486,7 +490,9 @@ class DocumentGenerationService:
             try:
                 text, missing = render_pattern(pattern, v)
             except PatternError as exc:
-                issues.append(make_issue("output.pattern", Severity.WARNING, Category.OUTPUT, str(exc)))
+                issues.append(
+                    make_issue("output.pattern", Severity.WARNING, Category.OUTPUT, str(exc), detail=str(exc))
+                )
                 text, missing = "", []
             if missing:
                 issues.append(
@@ -496,6 +502,7 @@ class DocumentGenerationService:
                         Category.OUTPUT,
                         f"Filename pattern values are empty: {missing}",
                         suggestion="Use fields that are always filled in output filename patterns.",
+                        fields=", ".join(map(str, missing)),
                     )
                 )
             return text
@@ -530,6 +537,8 @@ class DocumentGenerationService:
                     Severity.WARNING,
                     Category.OUTPUT,
                     f"Output path longer than {limit} characters; file name shortened to {short}",
+                    limit=limit,
+                    name=str(short),
                 )
             )
             target = base / short
@@ -714,6 +723,7 @@ class DocumentGenerationService:
                                     Severity.ERROR,
                                     Category.INTERNAL,
                                     f"Worker process failed: {type(exc).__name__}: {exc}",
+                                    detail=f"{type(exc).__name__}: {exc}",
                                 )
                             )
                     if (cancel.cancelled or stop) and exhausted is False:
@@ -777,6 +787,7 @@ class DocumentGenerationService:
                         Severity.WARNING,
                         Category.OUTPUT,
                         f"{target.name} exists; skipped (on_conflict: skip)",
+                        name=target.name,
                     )
                 )
                 continue
@@ -788,6 +799,8 @@ class DocumentGenerationService:
                         Severity.INFO,
                         Category.OUTPUT,
                         f"{target.name} existed; saved as {fin.path.name}",
+                        name=target.name,
+                        new_name=fin.path.name,
                     )
                 )
             outcome.outputs.append(str(fin.path))

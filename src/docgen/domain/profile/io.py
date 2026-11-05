@@ -74,6 +74,7 @@ def _pydantic_issues(exc: ValidationError) -> list[Issue]:
                 Category.CONFIG,
                 f"{location}: {err['msg']}",
                 rule=location,
+                detail=err["msg"],
             )
         )
     return issues

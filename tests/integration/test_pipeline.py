@@ -282,3 +282,19 @@ def test_customer_c_fills_an_existing_word_form(sample_c, tmp_path):
     assert "Nhấn để nhập văn bản." in text  # unbound 'ghi_chu' control keeps its placeholder
     infos = [i.code for i in result.issues]
     assert "template.spot_unbound" in infos and "template.blanks_unbound" in infos
+    # legacy drop-down "Giới tính" selects the Excel value (NV02 has "nữ": case-insensitive)
+    selected = []
+    for name in ("PhieuTT_NV01.docx", "PhieuTT_NV02.docx"):
+        doc = etree.fromstring(zipfile.ZipFile(tmp_path / "out" / name).read("word/document.xml"))
+        selected += [r.get(w + "val") for r in doc.iter(w + "result")]
+    assert selected == ["0", "1"]
+    # picture content control "anh": NV01's photo fitted into the 30x40 mm frame, NV02 has none
+    wp = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+    sizes = {}
+    for name in ("PhieuTT_NV01.docx", "PhieuTT_NV02.docx"):
+        doc = etree.fromstring(zipfile.ZipFile(tmp_path / "out" / name).read("word/document.xml"))
+        sizes[name] = [(int(e.get("cx")), int(e.get("cy"))) for e in doc.iter(wp + "extent")]
+    assert sizes["PhieuTT_NV02.docx"] == []
+    ((cx, cy),) = sizes["PhieuTT_NV01.docx"]
+    assert abs(cx - 30 * 36000) <= 1 and abs(cy - 40 * 36000) <= 1  # 3:4 photo fills the 3:4 frame
+    assert "template.picture_not_image" not in infos

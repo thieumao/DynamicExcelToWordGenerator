@@ -38,7 +38,7 @@ from docgen.domain.profile.models import (
     Profile,
     TransformCall,
 )
-from docgen.i18n.catalog import tr
+from docgen.i18n.catalog import issue_text, tr
 from docgen.ui.state import AppState
 from docgen.ui.widgets.common import button, error, page_title
 from docgen.ui.workers import run_in_background
@@ -762,7 +762,7 @@ class MappingPage(QWidget):
         if issues:
             self.test_output.clear()
             for issue in issues[:20]:
-                self.test_output.addItem(f"⚠ {issue}")
+                self.test_output.addItem(f"⚠ {issue_text(issue)[0]}")
 
     def _test(self) -> None:
         p, excel, folder = self.state.profile, self.state.excel_path, self.state.profile_dir
@@ -787,7 +787,7 @@ class MappingPage(QWidget):
                 )
             for issue in result.issues:
                 if issue.severity.value != "info":
-                    self.test_output.addItem(f"⚠ {issue}")
+                    self.test_output.addItem(f"⚠ {issue_text(issue)[0]}")
             for rec in result.records:
                 for trace in rec.traces:
                     value = trace.value
@@ -798,7 +798,7 @@ class MappingPage(QWidget):
                     if trace.sources or trace.steps:
                         self.test_output.addItem(f"      ↳ {trace.describe()}")
                 for issue in rec.issues:
-                    self.test_output.addItem(f"⚠ {issue}")
+                    self.test_output.addItem(f"⚠ {issue_text(issue)[0]}")
             self.state.publish_issues(
                 tr("Mapping test"), [*result.issues, *(i for r in result.records for i in r.issues)]
             )

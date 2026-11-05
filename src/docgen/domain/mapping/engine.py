@@ -286,6 +286,7 @@ class MappingEngine:
                         Category.CONFIG,
                         str(exc),
                         field=prefix + rule.name,
+                        detail=str(exc),
                     )
                 )
             if trace is not None:
@@ -312,6 +313,7 @@ class MappingEngine:
                     suggestion="Check the expression syntax and referenced field names.",
                     field=name,
                     rule=name,
+                    detail=str(exc),
                 )
             )
             value = None
@@ -442,6 +444,8 @@ class MappingEngine:
                     Category.CONFIG,
                     f"Column '{column}' is not declared for sheet '{table.sheet_id}'",
                     field=name,
+                    col=column,
+                    sheet_id=table.sheet_id,
                 )
             )
             return None
@@ -471,6 +475,7 @@ class MappingEngine:
                         f"Relationship '{rel_id}' cannot be followed from sheet '{table.sheet_id}'",
                         field=name,
                         rule=rel_id,
+                        sheet_id=table.sheet_id,
                     )
                 )
                 return table, [], to_many, None
@@ -522,6 +527,8 @@ class MappingEngine:
                     Category.CONFIG,
                     f"Column '{column}' is not declared for sheet '{target_table.sheet_id}'",
                     field=name,
+                    col=column,
+                    sheet_id=target_table.sheet_id,
                 )
             )
             return None
@@ -561,6 +568,8 @@ class MappingEngine:
                         Category.TYPE,
                         f"Cannot convert {value!r} to {rule.type.value}: {exc}",
                         suggestion="Fix the source value or change the field type.",
+                        value=V.to_text(value)[:100],
+                        type=rule.type.value,
                         **loc,
                     )
                 )
@@ -614,6 +623,8 @@ class MappingEngine:
                         f"Transform '{call.name}' failed on {value!r}: {exc}",
                         suggestion="Check the transform parameters or the source value.",
                         rule=call.name,
+                        value=V.to_text(value)[:100],
+                        detail=str(exc),
                         **loc,
                     )
                 )
@@ -661,6 +672,7 @@ class MappingEngine:
                             Category.EXPRESSION,
                             str(exc),
                             field=name,
+                            detail=str(exc),
                         )
                     )
                     continue
@@ -712,6 +724,7 @@ class MappingEngine:
                             Category.EXPRESSION,
                             str(exc),
                             field=name,
+                            detail=str(exc),
                         )
                     )
             rows = kept
@@ -727,6 +740,8 @@ class MappingEngine:
                         Category.CONFIG,
                         f"Column '{spec.of}' is not declared for sheet '{table.sheet_id}'",
                         field=name,
+                        col=spec.of,
+                        sheet_id=table.sheet_id,
                     )
                 )
                 return spec.default, trace
@@ -750,6 +765,8 @@ class MappingEngine:
                         Category.TRANSFORM,
                         f"Aggregation '{spec.op}' failed: {exc}",
                         field=name,
+                        op=spec.op,
+                        detail=str(exc),
                     )
                 )
                 value = None

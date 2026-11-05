@@ -75,6 +75,7 @@ class ProfileValidator:
                             "relationship.unknown_sheet",
                             f"Relationship '{rel.id}' {side} sheet '{sheet}' is not declared",
                             rule=rel.id,
+                            target=sheet,
                         )
                     )
             for pair in rel.keys:
@@ -85,6 +86,8 @@ class ProfileValidator:
                             f"Relationship '{rel.id}': column '{pair.from_}' is not declared in "
                             f"sheet '{rel.from_}'",
                             rule=rel.id,
+                            col=pair.from_,
+                            sheet_id=rel.from_,
                         )
                     )
                 if rel.to in self.columns and pair.to not in self.columns[rel.to]:
@@ -94,6 +97,8 @@ class ProfileValidator:
                             f"Relationship '{rel.id}': column '{pair.to}' is not declared in "
                             f"sheet '{rel.to}'",
                             rule=rel.id,
+                            col=pair.to,
+                            sheet_id=rel.to,
                         )
                     )
             if rel.filter:
@@ -112,6 +117,8 @@ class ProfileValidator:
                         f"'{name}' uses unknown relationship '{rel_id}'",
                         suggestion=f"Declared relationships: {sorted(self.rels)}",
                         field=name,
+                        relationship=rel_id,
+                        available=", ".join(sorted(self.rels)),
                     )
                 )
                 return None, to_many
@@ -122,6 +129,9 @@ class ProfileValidator:
                         f"'{name}': relationship '{rel_id}' starts at sheet '{rel.from_}' but the "
                         f"path is at sheet '{sheet}'",
                         field=name,
+                        relationship=rel_id,
+                        start=rel.from_,
+                        sheet_id=str(sheet),
                     )
                 )
                 return None, to_many
@@ -143,6 +153,7 @@ class ProfileValidator:
                             f"'{a}' is a value but '{b}' needs it to be an object",
                             suggestion=f"Rename '{a}' (e.g. '{a}.value') or '{b}'.",
                             field=a,
+                            other=b,
                         )
                     )
         if top_level:
@@ -151,7 +162,12 @@ class ProfileValidator:
                 root = n.split(".")[0]
                 if root in RESERVED_ROOTS:
                     self.issues.append(
-                        _err("field.reserved_name", f"'{n}' uses the reserved root name '{root}'", field=n)
+                        _err(
+                            "field.reserved_name",
+                            f"'{n}' uses the reserved root name '{root}'",
+                            field=n,
+                            root=root,
+                        )
                     )
                 if root in sheet_like:
                     self.issues.append(
@@ -160,6 +176,7 @@ class ProfileValidator:
                             f"'{n}' starts with '{root}', which is also a sheet/relationship id; "
                             "expressions would be ambiguous",
                             field=n,
+                            root=root,
                         )
                     )
         _, cycles = order_rules(list(rules))
@@ -170,6 +187,7 @@ class ProfileValidator:
                     "Circular dependency: " + " -> ".join(cycle),
                     suggestion="Break the cycle so no field (indirectly) depends on itself.",
                     field=cycle[0],
+                    cycle=" → ".join(cycle),
                 )
             )
         for rule in rules:
@@ -190,6 +208,9 @@ class ProfileValidator:
                     f"'{name}': column '{column}' is not declared in sheet '{sheet}'",
                     suggestion=f"Declared columns: {sorted(self.columns[sheet])}",
                     field=name,
+                    col=column,
+                    sheet_id=sheet,
+                    available=", ".join(sorted(self.columns[sheet])),
                 )
             )
 
@@ -273,6 +294,8 @@ class ProfileValidator:
                         suggestion=f"Available transforms: {', '.join(self.registry.names())}",
                         field=name,
                         rule=call.name,
+                        detail=problem,
+                        available=", ".join(self.registry.names()),
                     )
                 )
 
@@ -287,6 +310,8 @@ class ProfileValidator:
                     Category.EXPRESSION,
                     str(exc),
                     suggestion="Expressions use Jinja syntax, e.g. emp.grade >= 5 and emp.city == 'Hà Nội'",
+                    source=source,
+                    detail=str(exc),
                     **ctx,
                 )
             )
@@ -302,6 +327,7 @@ class ProfileValidator:
                         f"group_by '{path}' is not a declared field",
                         suggestion=f"Use one of: {sorted(known)[:10]}",
                         field=path,
+                        available=", ".join(sorted(known)[:10]),
                     )
                 )
         if gen.filter:
@@ -353,6 +379,7 @@ class ProfileValidator:
                             "validation.bad_regex",
                             f"Invalid regex for '{rule.field}': {exc}",
                             field=rule.field,
+                            detail=str(exc),
                         )
                     )
 

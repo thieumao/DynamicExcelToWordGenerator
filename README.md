@@ -23,7 +23,8 @@ Excel (.xlsx/.xlsm/.xls/.csv) ──► profile: sheets · relationships · fiel
 * Explicit policies for missing references and duplicate keys – never an arbitrary pick.
 * Formula cells without stored results are detected and never used silently.
 * Works with the customer's **existing Word forms**: blanks after labels (`Họ và tên: ......`),
-  empty label/value table cells, content controls and legacy form fields are detected and – once
+  empty label/value table cells, content controls (incl. check boxes, drop-downs and photo frames)
+  and legacy form fields are detected and – once
   bound to a field – filled; unbound inputs (signatures, office-use boxes) stay untouched.
 * Multiple templates per document; merge keeps each template's orientation, margins and
   headers/footers; repeating tables, conditional sections, images.

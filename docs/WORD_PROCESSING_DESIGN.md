@@ -32,8 +32,8 @@ files…* on the Generate page). `infrastructure/word/spots.py` then detects thr
 
 | Kind | Detected from | Name used for binding | How it is filled |
 |---|---|---|---|
-| Content control (`content_control`) | `w:sdt` with text, rich text, date, drop-down/combo or check box content | the control's *tag*, else its *title*, else `control_N` | The control stays a form control. `showingPlcHdr` and the placeholder style are removed. A custom-XML `w:dataBinding` is also removed, because otherwise Word would overwrite the value on open. A stale date `fullDate` is removed too. The first text run receives the value, and the other runs are emptied. Check boxes get `☒/☐` and `w14:checked`. |
-| Legacy form field (`form_field`) | `FORMTEXT` / `FORMCHECKBOX` fields (`w:ffData/w:name`) | the field's bookmark name | The field result text is replaced. For a check box, `w:checked w:val` is set. |
+| Content control (`content_control`) | `w:sdt` with text, rich text, date, drop-down/combo, check box or picture content | the control's *tag*, else its *title*, else `control_N` | The control stays a form control. `showingPlcHdr` and the placeholder style are removed. A custom-XML `w:dataBinding` is also removed, because otherwise Word would overwrite the value on open. A stale date `fullDate` is removed too. The first text run receives the value, and the other runs are emptied. Check boxes get `☒/☐` and `w14:checked`. A **picture** control gets the image of an `image` field: the frame's placeholder picture is replaced and the image is fitted into the frame size (`wp:extent`), keeping its aspect ratio, unless the field sets `width_mm`/`height_mm`. No image in Excel leaves the frame empty. |
+| Legacy form field (`form_field`) | `FORMTEXT` / `FORMCHECKBOX` / `FORMDROPDOWN` fields (`w:ffData/w:name`) | the field's bookmark name | The field result text is replaced. For a check box, `w:checked w:val` is set. For a **drop-down**, `w:ddList/w:result` selects the entry equal to the value: an exact match first, then ignoring case and spaces, then ignoring accents, and only when that match is unique. An empty value keeps the form's own selection. A value that is not one of the entries stops that document with `render.value_error`; it is never guessed. Use a `map_values` transform to translate codes into entries. |
 | Blank (`blank`) | A run of `.`, `_` or `…` (minimum `blank_min`, where `…` counts as 3), or underlined spaces, after a label such as `Họ và tên: ........`; also an empty table cell to the right of a label cell | the label text, e.g. `Họ và tên`; a repeated label gets `tháng (2)` | The filler is replaced by the value. Text before and after it, and its run formatting, are kept. |
 
 Rules:
@@ -60,8 +60,10 @@ Rules:
   Changing a binding rescans the template.
 
 **Limitations of spot detection:**
-* Drop-down *legacy* form fields (`FORMDROPDOWN`) and picture content controls are reported and
-  left unchanged.
+* Drop-down values are checked when each document is filled, not in the *Validate* pass, so a bad
+  value is reported for that record only.
+* A picture control bound to a field that is not of type `image` shows the text value and is
+  reported (`template.picture_not_image`).
 * Text inside fields or inside other controls is never treated as a blank.
 * Only the first 300 empty label/value table cells per part are considered. List-style tables
   (header row + empty rows) are not detected as blanks; use `{%tr for %}` for those.

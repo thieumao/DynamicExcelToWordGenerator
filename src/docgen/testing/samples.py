@@ -446,8 +446,8 @@ profile:
   version: 1
   description: >
     The customer's Word file is an existing form without placeholders: blanks after labels,
-    content controls, legacy form fields and a label/value table. Bindings map each input to
-    an Excel field; unbound inputs (signature, date of signing) stay empty.
+    content controls, legacy form fields (text, check box, drop-down) and a label/value table.
+    Bindings map each input to an Excel field; unbound inputs (signature, date) stay empty.
 excel:
   primary: ds
   sheets:
@@ -467,6 +467,8 @@ excel:
         - {id: dang_vien, header: "Đảng viên"}
         - {id: ket_hon, header: "Đã kết hôn"}
         - {id: mst, header: "MST", type: string, required: false}
+        - {id: gioi_tinh, header: "Giới tính"}
+        - {id: anh, header: "Ảnh", required: false}
     - id: pb
       match: {name: "Phòng ban"}
       columns:
@@ -496,6 +498,8 @@ fields:
   - {name: nhan_vien.dang_vien, source: dang_vien}
   - {name: nhan_vien.ket_hon, source: ket_hon}
   - {name: nhan_vien.mst, source: mst, default: "(chưa có)"}
+  - {name: nhan_vien.gioi_tinh, source: gioi_tinh}
+  - {name: nhan_vien.anh, source: anh, type: image}   # path relative to the Excel file
 templates:
   - id: phieu
     file: templates/PhieuThongTin.docx
@@ -515,6 +519,8 @@ templates:
       dang_vien: nhan_vien.dang_vien
       MST: nhan_vien.mst
       KetHon: nhan_vien.ket_hon
+      GioiTinh: nhan_vien.gioi_tinh
+      anh: nhan_vien.anh
 generation:
   unit: record
   output: separate
@@ -540,6 +546,8 @@ def customer_c_sheets() -> dict[str, list[list[object]]]:
                 "Đảng viên",
                 "Đã kết hôn",
                 "MST",
+                "Giới tính",
+                "Ảnh",
             ],
             [
                 "NV01",
@@ -555,6 +563,8 @@ def customer_c_sheets() -> dict[str, list[list[object]]]:
                 "Có",
                 "Không",
                 "0101234567",
+                "Nam",
+                "anh/NV01.png",
             ],
             [
                 "NV02",
@@ -570,6 +580,8 @@ def customer_c_sheets() -> dict[str, list[list[object]]]:
                 "Không",
                 "Có",
                 None,
+                "nữ",
+                None,  # no photo yet: the frame is left empty
             ],
         ],
         "Phòng ban": [["Mã phòng", "Tên phòng"], ["KT", "Phòng Kế toán"], ["IT", "Phòng Công nghệ"]],
@@ -583,14 +595,19 @@ def _form_template(path: Path) -> None:
         add_block_content_control,
         add_content_control,
         add_form_checkbox,
+        add_form_dropdown,
         add_form_text,
+        add_picture_content_control,
     )
 
     doc = Document()
     _style_document(doc)
     doc.sections[0].header.paragraphs[0].text = "CÔNG TY TNHH ABC – Biểu mẫu NS-01"
     doc.add_heading("PHIẾU THÔNG TIN NHÂN VIÊN", level=1)
+    frame = tiny_png((225, 225, 225), (30, 40))
+    add_picture_content_control(doc.add_paragraph("Ảnh 3x4: "), "anh", frame, alias="Ảnh 3x4", height_mm=40)
     doc.add_paragraph("Họ và tên: ................................................")
+    add_form_dropdown(doc.add_paragraph("Giới tính: "), "GioiTinh", ("Nam", "Nữ"))
     doc.add_paragraph("Sinh ngày ........ tháng ........ năm ............, tại: ____________________")
     p = doc.add_paragraph("Phòng ban: ")
     add_content_control(p, "phong_ban", alias="Phòng ban")
@@ -623,4 +640,7 @@ def write_customer_c(directory: Path) -> tuple[Path, Path]:
     profile.write_text(CUSTOMER_C_PROFILE, encoding="utf-8")
     _form_template(directory / "templates" / "PhieuThongTin.docx")
     workbook = build_xlsx(directory / "data" / "NhanVien.xlsx", customer_c_sheets())
+    photos = directory / "data" / "anh"
+    photos.mkdir(parents=True, exist_ok=True)
+    (photos / "NV01.png").write_bytes(tiny_png((40, 90, 160), (60, 80)))  # 3:4 portrait
     return profile, workbook

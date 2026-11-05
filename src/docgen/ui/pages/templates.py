@@ -30,7 +30,7 @@ from docgen.application.templates import PreparedTemplate, prepare_template
 from docgen.application.workbook import suggest_identifier
 from docgen.domain.mapping.context import build_schema
 from docgen.domain.profile.models import MarkerConfig, MissingPolicy, SectionConfig, TemplateSpec
-from docgen.i18n.catalog import tr
+from docgen.i18n.catalog import issue_text, tr
 from docgen.ui.state import AppState
 from docgen.ui.widgets.common import button, error, page_title
 from docgen.ui.workers import run_in_background
@@ -278,7 +278,7 @@ class TemplatesPage(QWidget):
             return
         fields = sorted(build_schema(p).paths)
         if prepared is None:
-            self.scan_info.setText("; ".join(i.message for i in issues))
+            self.scan_info.setText("; ".join(issue_text(i)[0] for i in issues))
             return
         rows: list[tuple[str, str, str, str | None, str]] = []
         spot_names = {sp.name for sp in prepared.spots}
@@ -332,7 +332,7 @@ class TemplatesPage(QWidget):
         problems = [i for i in issues if i.severity.value != "info"]
         self.scan_info.setText(
             tr("{n} placeholder(s); {p} problem(s)", n=len(rows), p=len(problems))
-            + ("\n" + "\n".join(f"• {i.message}" for i in problems[:8]) if problems else "")
+            + ("\n" + "\n".join(f"• {issue_text(i)[0]}" for i in problems[:8]) if problems else "")
         )
         self.state.publish_issues(tr("Template {tid}", tid=spec.id), issues)
 

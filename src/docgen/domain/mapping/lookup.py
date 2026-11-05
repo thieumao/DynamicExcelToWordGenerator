@@ -216,6 +216,9 @@ def resolve(
                 row=excel_row,
                 rule=rel.id,
                 key=format_key(key),
+                target=index.table.sheet_name,
+                count=len(matches),
+                used_row=excel_rows[0],
             )
         )
     return Resolution([matches[0]], issues)

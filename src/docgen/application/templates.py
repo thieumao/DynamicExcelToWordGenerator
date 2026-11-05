@@ -8,7 +8,7 @@ from pathlib import Path
 from docgen.domain.data.values import normalize_label
 from docgen.domain.diagnostics import Category, Issue, Severity, make_issue
 from docgen.domain.mapping.context import ContextSchema, build_schema
-from docgen.domain.profile.models import MissingPolicy, Profile, TemplateSpec, UnitKind
+from docgen.domain.profile.models import FieldType, MissingPolicy, Profile, TemplateSpec, UnitKind
 from docgen.infrastructure.fs.safety import UnsafeFileError, ZipLimits, check_zip
 from docgen.infrastructure.word.inspector import (
     TemplateInspection,
@@ -114,6 +114,8 @@ def prepare_template(
                 Category.TEMPLATE,
                 f"Cannot read template {path.name}: {exc}",
                 template=spec.id,
+                name=path.name,
+                detail=str(exc),
             )
         )
         return None, issues
@@ -128,13 +130,38 @@ def prepare_template(
                 err,
                 template=spec.id,
                 suggestion="Fix the tag in Word; every {% if %}/{% for %} needs its end tag.",
+                detail=err,
             )
         )
     for warning in inspection.warnings:
         issues.append(
-            make_issue("template.marker", Severity.WARNING, Category.TEMPLATE, warning, template=spec.id)
+            make_issue(
+                "template.marker",
+                Severity.WARNING,
+                Category.TEMPLATE,
+                warning,
+                template=spec.id,
+                detail=warning,
+            )
         )
 
+    image_fields = {f.name for f in profile.fields if f.type is FieldType.IMAGE}
+    for sp in filled.spots:
+        if sp.filled and sp.subtype == "picture" and spot_paths[sp.name] not in image_fields:
+            issues.append(
+                make_issue(
+                    "template.picture_not_image",
+                    Severity.WARNING,
+                    Category.PLACEHOLDER,
+                    f"Picture input '{sp.name}' is bound to '{spot_paths[sp.name]}', which is not an "
+                    "image field; its text is shown instead of a picture",
+                    suggestion="Bind it to a field of type 'image' (the Excel cell holds the picture "
+                    "file name or path).",
+                    template=spec.id,
+                    placeholder=sp.name,
+                    path=spot_paths[sp.name],
+                )
+            )
     unfilled = [sp for sp in filled.spots if not sp.filled]
     for sp in unfilled:
         if sp.kind != KIND_BLANK:
@@ -171,6 +198,7 @@ def prepare_template(
                 f"'{spec.marker.style.value}'; it will be copied without data",
                 suggestion="Check the marker style (jinja / custom / mergefield) and delimiters.",
                 template=spec.id,
+                style=spec.marker.style.value,
             )
         )
     prepared = PreparedTemplate(spec, path, converted.data, inspection, spots=list(filled.spots))
@@ -195,6 +223,7 @@ def prepare_template(
                         template=spec.id,
                         placeholder=name,
                         suggestion=f"Did you mean {schema.suggestions(spec.bindings[name])}?",
+                        path=spec.bindings[name],
                     )
                 )
             continue
@@ -209,6 +238,7 @@ def prepare_template(
                     f"Placeholder '{name}' was matched to field '{guess}'",
                     template=spec.id,
                     placeholder=name,
+                    path=guess,
                 )
             )
             continue

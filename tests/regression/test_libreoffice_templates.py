@@ -2,22 +2,25 @@
 
 LibreOffice writes different OOXML (run splitting, table/style markup) and flattens unbound
 MERGEFIELDs into plain «Name» text. Customer B's templates are round-tripped docx → odt → docx and
-the full pipeline must still fill every placeholder.
+the full pipeline must still fill every placeholder. Customer C's form (blanks, content controls,
+legacy form fields, a photo frame) must keep every input detectable and fillable.
 """
 
 from __future__ import annotations
 
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
 from docx import Document
+from lxml import etree
 
 from docgen.application.generation.job import GenerationRequest
 from docgen.application.generation.service import DocumentGenerationService
 from docgen.domain.profile.io import load_profile
-from docgen.testing.samples import write_customer_a, write_customer_b
+from docgen.testing.samples import write_customer_a, write_customer_b, write_customer_c
 
 pytestmark = [
     pytest.mark.libreoffice,
@@ -60,3 +63,27 @@ def test_libreoffice_saved_templates(writer, tmp_path):
     assert "«" not in text and "{{" not in text and "<<" not in text
     if writer is write_customer_b:
         assert "Hợp đồng: HD-001" in text and "Ngày ký: 02/07/2024" in text
+
+
+def test_libreoffice_saved_form_is_still_filled(tmp_path):
+    profile_path, workbook = write_customer_c(tmp_path / "src")
+    roundtrip(profile_path.parent / "templates", tmp_path / "lo")
+    result = DocumentGenerationService().run(
+        GenerationRequest(load_profile(profile_path), profile_path.parent, workbook, tmp_path / "out")
+    )
+    assert result.status == "completed", [str(i) for i in result.all_issues()]
+    w = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    xml = etree.fromstring(zipfile.ZipFile(tmp_path / "out" / "PhieuTT_NV01.docx").read("word/document.xml"))
+    text = "\n".join("".join(t.text or "" for t in p.iter(w + "t")) for p in xml.iter(w + "p"))
+    for expected in (
+        "Họ và tên: Nguyễn Văn Ánh",
+        "Sinh ngày 05 tháng 09 năm 1990, tại: Hà Nội",
+        "Phòng ban: Phòng Kế toán",
+        "Chức vụ: Trưởng phòng",
+        "Mã số thuế cá nhân: 0101234567",
+        "anh@example.vn",
+    ):
+        assert expected in text, expected
+    assert "Hà Nội, ngày ...... tháng ...... năm ........" in text  # unbound: untouched
+    assert [r.get(w + "val") for r in xml.iter(w + "result")] == ["0"]  # drop-down "Nam"
+    assert "{{" not in text

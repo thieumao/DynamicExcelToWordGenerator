@@ -7,17 +7,22 @@ import io
 import zipfile
 from pathlib import Path
 
+import pytest
 from docx import Document
 from lxml import etree
 
-from docgen.infrastructure.word.renderer import TemplateRenderer
-from docgen.infrastructure.word.spots import KIND_BLANK, SpotOptions, process_spots
+from docgen.domain.mapping.engine import ImageRef
+from docgen.infrastructure.word.renderer import RenderError, TemplateRenderer
+from docgen.infrastructure.word.spots import KIND_BLANK, SpotOptions, match_choice, process_spots
 from docgen.infrastructure.word.verifier import verify_docx
 from docgen.testing.docx_builder import (
     add_block_content_control,
     add_content_control,
     add_form_checkbox,
+    add_form_dropdown,
     add_form_text,
+    add_picture_content_control,
+    tiny_png,
 )
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -208,3 +213,85 @@ def test_filled_control_drops_custom_xml_binding_and_stale_date(tmp_path: Path):
     assert xml.count("w:dataBinding") == 1  # only the unbound control keeps its XML binding
     assert "fullDate" not in xml
     assert "Ngày ký: 09/03/2024" in all_text(out.read_bytes())
+
+
+def picture_extents(path: Path) -> list[tuple[int, int]]:
+    wp = "{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}"
+    xml = etree.fromstring(zipfile.ZipFile(path).read("word/document.xml"))
+    return [(int(e.get("cx")), int(e.get("cy"))) for e in xml.iter(wp + "extent")]
+
+
+def dropdown_form() -> bytes:
+    doc = Document()
+    add_form_dropdown(doc.add_paragraph("Giới tính: "), "GioiTinh", ("Nam", "Nữ", "Khác"))
+    add_form_dropdown(
+        doc.add_paragraph("Trình độ: "), "TrinhDo", ("Trung cấp", "Cao đẳng", "Đại học"), selected=2
+    )
+    buf = io.BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def selected_entries(path: Path) -> list[str]:
+    xml = etree.fromstring(zipfile.ZipFile(path).read("word/document.xml"))
+    return [dd.find(W + "result").get(W + "val") for dd in xml.iter(W + "ddList")]
+
+
+def test_legacy_dropdown_is_detected_with_its_choices():
+    spots = {s.name: s for s in process_spots(dropdown_form(), SpotOptions()).spots}
+    assert spots["GioiTinh"].kind == "form_field" and spots["GioiTinh"].subtype == "dropdown"
+    assert spots["GioiTinh"].context == "Giới tính: [Nam / Nữ / Khác]"
+
+
+def test_legacy_dropdown_selects_the_matching_choice(tmp_path: Path):
+    result = process_spots(dropdown_form(), SpotOptions(), fill=lambda s: True)
+    renderer = TemplateRenderer()
+    out = tmp_path / "a.docx"
+    renderer.render(result.data, {"b": {"GioiTinh": "Nữ", "TrinhDo": "  đại HỌC "}}, out)
+    assert selected_entries(out) == ["1", "2"]
+    assert verify_docx(out).ok
+    empty = tmp_path / "b.docx"
+    renderer.render(result.data, {"b": {"GioiTinh": None, "TrinhDo": ""}}, empty)
+    assert selected_entries(empty) == ["0", "2"]  # empty value keeps the form's own selection
+    with pytest.raises(RenderError) as exc:
+        renderer.render(result.data, {"b": {"GioiTinh": "F", "TrinhDo": "Đại học"}}, tmp_path / "c.docx")
+    issue = exc.value.issues[-1]
+    assert issue.code == "render.value_error"
+    assert "'F'" in issue.message and "Nam / Nữ / Khác" in issue.message
+    assert not (tmp_path / "c.docx").exists()
+
+
+def test_choice_matching_never_guesses():
+    assert match_choice("Nữ", ["Nam", "Nữ"]) == 1
+    assert match_choice("nu", ["Nam", "Nữ"]) == 1  # accents ignored only as a last resort
+    assert match_choice("nam", ["Nam", "nam"]) == 1  # exact match wins
+    assert match_choice("NAM", ["Nam", "nam"]) is None  # ambiguous: no arbitrary pick
+    assert match_choice(2, ["1", "2"]) == 1
+
+
+def test_picture_control_gets_the_excel_image_fitted_into_its_frame(tmp_path: Path):
+    placeholder = tmp_path / "frame.png"
+    placeholder.write_bytes(tiny_png((220, 220, 220), (30, 40)))
+    photo = tmp_path / "photo.png"
+    photo.write_bytes(tiny_png((10, 120, 200), (200, 100)))  # wide picture, 2:1
+    doc = Document()
+    add_picture_content_control(doc.add_paragraph("Ảnh 3x4: "), "anh", placeholder, alias="Ảnh", width_mm=30)
+    add_picture_content_control(doc.add_paragraph("Ảnh phụ: "), "anh_phu", placeholder)
+    buf = io.BytesIO()
+    doc.save(buf)
+    spots = {s.name: s for s in process_spots(buf.getvalue(), SpotOptions()).spots}
+    assert spots["anh"].subtype == "picture" and spots["anh"].context == "Ảnh 3x4: […]"
+    result = process_spots(buf.getvalue(), SpotOptions(), fill=lambda s: s.name == "anh")
+    out = tmp_path / "out.docx"
+    TemplateRenderer().render(result.data, {"b": {"anh": ImageRef(str(photo))}}, out)
+    shapes = picture_extents(out)
+    assert len(shapes) == 2  # the photo, and the unbound frame keeps its own picture
+    photo_w, photo_h = shapes[0]
+    assert abs(photo_w - 30 * 36000) <= 1  # fills the 30 mm frame width
+    assert abs(photo_w / photo_h - 2) < 0.01  # aspect ratio kept (15 mm high, inside the 40 mm frame)
+    xml = zipfile.ZipFile(out).read("word/document.xml").decode()
+    assert xml.count("<w:picture/>") == 2 and xml.count("showingPlcHdr") == 1
+    assert verify_docx(out).ok
+    # no image in Excel: the frame is emptied rather than showing the grey placeholder
+    TemplateRenderer().render(result.data, {"b": {"anh": None}}, tmp_path / "empty.docx")
+    assert len(picture_extents(tmp_path / "empty.docx")) == 1

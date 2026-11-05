@@ -10,6 +10,7 @@ from typing import Any
 from docgen import __version__
 from docgen.application.generation.job import JobResult
 from docgen.domain.diagnostics import Severity
+from docgen.i18n.catalog import issue_text
 
 
 def audit_dict(result: JobResult) -> dict[str, Any]:
@@ -82,8 +83,8 @@ def write_audit(result: JobResult, directory: Path) -> tuple[Path, Path]:
                     len(errors),
                     sum(1 for i in u.issues if i.severity is Severity.WARNING),
                     " | ".join(u.outputs),
-                    str(errors[0]) if errors else "",
-                    (errors[0].suggestion or "") if errors else "",
+                    issue_text(errors[0])[0] if errors else "",
+                    issue_text(errors[0])[1] if errors else "",
                 ]
             )
     tmp_csv.replace(report_path)

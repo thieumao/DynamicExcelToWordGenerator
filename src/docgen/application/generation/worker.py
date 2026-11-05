@@ -114,6 +114,7 @@ def render_unit(job: UnitJob) -> UnitJobResult:
                     Category.INTERNAL,
                     f"Unexpected error while rendering: {type(exc).__name__}: {exc}",
                     template=tjob.template_id,
+                    detail=f"{type(exc).__name__}: {exc}",
                 )
             )
             result.failed = True
@@ -150,7 +151,7 @@ def render_unit(job: UnitJob) -> UnitJobResult:
                 ).merge(parts, merged)
                 for warning in report.warnings:
                     result.issues.append(
-                        make_issue("merge.warning", Severity.WARNING, Category.MERGE, warning)
+                        make_issue("merge.warning", Severity.WARNING, Category.MERGE, warning, detail=warning)
                     )
             except Exception as exc:
                 result.issues.append(
@@ -160,6 +161,7 @@ def render_unit(job: UnitJob) -> UnitJobResult:
                         Category.MERGE,
                         f"Merging failed: {type(exc).__name__}: {exc}",
                         suggestion="Generate separate documents, or report the template combination.",
+                        detail=f"{type(exc).__name__}: {exc}",
                     )
                 )
                 result.failed = True
@@ -192,6 +194,7 @@ def _verify(
                 problem,
                 template=template_id,
                 suggestion="The document was not saved. Check the template for unsupported content.",
+                detail=problem,
             )
         )
         result.failed = True
@@ -203,5 +206,6 @@ def _verify(
                 Category.OUTPUT,
                 warning,
                 template=template_id,
+                detail=warning,
             )
         )

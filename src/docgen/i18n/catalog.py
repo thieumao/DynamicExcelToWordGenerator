@@ -8,6 +8,8 @@ placeholders; unknown codes fall back to the English message from the core.
 from __future__ import annotations
 
 import json
+import string
+from collections.abc import Mapping
 from functools import cache
 from importlib import resources
 from typing import Any
@@ -49,20 +51,30 @@ def tr(text: str, **params: Any) -> str:
     return translated
 
 
+class _Params(dict[str, Any]):
+    """Message parameters; a value that is not known for this issue shows as '—'."""
+
+    def __missing__(self, key: str) -> str:
+        return "—"
+
+
+def _fill(template: str, params: Mapping[str, Any]) -> str | None:
+    try:
+        return string.Formatter().vformat(template, (), _Params(params))
+    except (IndexError, ValueError, AttributeError):
+        return None
+
+
 def issue_text(issue: Issue) -> tuple[str, str]:
     """Localised (message, suggestion) for an issue."""
     catalog = _catalog(_language)
     message, suggestion = issue.message, issue.suggestion or ""
     template = catalog.get(f"issue:{issue.code}")
+    if issue.params.get("user_message"):
+        template = None  # a message the customer wrote in the profile is shown as written
     if template:
-        try:
-            message = template.format(**{k: v for k, v in issue.params.items()})
-        except (KeyError, IndexError, ValueError):
-            message = issue.message
+        message = _fill(template, issue.params) or issue.message
     hint = catalog.get(f"hint:{issue.code}")
     if hint:
-        try:
-            suggestion = hint.format(**dict(issue.params))
-        except (KeyError, IndexError, ValueError):
-            pass
+        suggestion = _fill(hint, issue.params) or suggestion
     return message, suggestion
