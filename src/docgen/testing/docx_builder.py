@@ -241,3 +241,143 @@ def build_docx(path: Path, spec: DocSpec) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(path))
     return path
+
+
+def _sdt_properties(tag: str | None, alias: str | None, kind: str, items: tuple[str, ...]) -> Any:
+    pr = OxmlElement("w:sdtPr")
+    if alias:
+        el = OxmlElement("w:alias")
+        el.set(qn("w:val"), alias)
+        pr.append(el)
+    if tag:
+        el = OxmlElement("w:tag")
+        el.set(qn("w:val"), tag)
+        pr.append(el)
+    if kind != "checkbox":
+        pr.append(OxmlElement("w:showingPlcHdr"))
+    if kind == "date":
+        date = OxmlElement("w:date")
+        fmt = OxmlElement("w:dateFormat")
+        fmt.set(qn("w:val"), "dd/MM/yyyy")
+        date.append(fmt)
+        pr.append(date)
+    elif kind == "dropdown":
+        dd = OxmlElement("w:dropDownList")
+        for item in items:
+            li = OxmlElement("w:listItem")
+            li.set(qn("w:displayText"), item)
+            li.set(qn("w:value"), item)
+            dd.append(li)
+        pr.append(dd)
+    elif kind == "checkbox":
+        box = OxmlElement("w14:checkbox")
+        checked = OxmlElement("w14:checked")
+        checked.set(qn("w14:val"), "0")
+        box.append(checked)
+        for state, char in (("w14:checkedState", "2612"), ("w14:uncheckedState", "2610")):
+            st = OxmlElement(state)
+            st.set(qn("w14:val"), char)
+            st.set(qn("w14:font"), "MS Gothic")
+            box.append(st)
+        pr.append(box)
+    else:
+        pr.append(OxmlElement("w:text"))
+    return pr
+
+
+def add_content_control(
+    paragraph: Paragraph,
+    tag: str | None,
+    *,
+    alias: str | None = None,
+    placeholder: str = "Nhấn để nhập văn bản.",
+    kind: str = "text",
+    items: tuple[str, ...] = (),
+    bold: bool = False,
+) -> None:
+    """Append an inline (run-level) Word content control to *paragraph*."""
+    sdt = OxmlElement("w:sdt")
+    sdt.append(_sdt_properties(tag, alias, kind, items))
+    content = OxmlElement("w:sdtContent")
+    run = OxmlElement("w:r")
+    if bold:
+        rpr = OxmlElement("w:rPr")
+        rpr.append(OxmlElement("w:b"))
+        run.append(rpr)
+    t = OxmlElement("w:t")
+    t.text = "☐" if kind == "checkbox" else placeholder
+    run.append(t)
+    content.append(run)
+    sdt.append(content)
+    paragraph._p.append(sdt)
+
+
+def add_block_content_control(
+    doc: Any, tag: str, *, alias: str | None = None, placeholder: str = "Nhấn để nhập văn bản."
+) -> None:
+    """Append a block-level content control (wrapping a whole paragraph)."""
+    sdt = OxmlElement("w:sdt")
+    sdt.append(_sdt_properties(tag, alias, "text", ()))
+    content = OxmlElement("w:sdtContent")
+    p = OxmlElement("w:p")
+    r = OxmlElement("w:r")
+    t = OxmlElement("w:t")
+    t.text = placeholder
+    r.append(t)
+    p.append(r)
+    content.append(p)
+    sdt.append(content)
+    body = doc.element.body
+    body.insert(len(body) - 1, sdt)  # before the body sectPr
+
+
+def _form_field(paragraph: Paragraph, name: str, kind: str, result: str, checked: bool = False) -> None:
+    def run_with(*children: Any) -> Any:
+        r = OxmlElement("w:r")
+        for child in children:
+            r.append(child)
+        return r
+
+    begin = OxmlElement("w:fldChar")
+    begin.set(qn("w:fldCharType"), "begin")
+    ff = OxmlElement("w:ffData")
+    nm = OxmlElement("w:name")
+    nm.set(qn("w:val"), name)
+    ff.append(nm)
+    ff.append(OxmlElement("w:enabled"))
+    if kind == "FORMCHECKBOX":
+        box = OxmlElement("w:checkBox")
+        box.append(OxmlElement("w:sizeAuto"))
+        default = OxmlElement("w:default")
+        default.set(qn("w:val"), "1" if checked else "0")
+        box.append(default)
+        ff.append(box)
+    else:
+        ff.append(OxmlElement("w:textInput"))
+    begin.append(ff)
+    instr = OxmlElement("w:instrText")
+    instr.set(qn("xml:space"), "preserve")
+    instr.text = f" {kind} "
+    end = OxmlElement("w:fldChar")
+    end.set(qn("w:fldCharType"), "end")
+    paragraph._p.append(run_with(begin))
+    paragraph._p.append(run_with(instr))
+    if kind == "FORMTEXT":
+        sep = OxmlElement("w:fldChar")
+        sep.set(qn("w:fldCharType"), "separate")
+        paragraph._p.append(run_with(sep))
+        t = OxmlElement("w:t")
+        t.set(qn("xml:space"), "preserve")
+        t.text = result
+        paragraph._p.append(run_with(t))
+    paragraph._p.append(run_with(end))
+
+
+def add_form_text(paragraph: Paragraph, name: str, result: str = " " * 5) -> None:
+    """Append a legacy text form field (FORMTEXT) named *name*."""
+    _form_field(paragraph, name, "FORMTEXT", result)
+
+
+def add_form_checkbox(paragraph: Paragraph, name: str, *, checked: bool = False) -> None:
+    """Append a legacy check box form field (FORMCHECKBOX) named *name*."""
+    _form_field(paragraph, name, "FORMCHECKBOX", "", checked)

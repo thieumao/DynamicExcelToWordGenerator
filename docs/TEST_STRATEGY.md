@@ -14,14 +14,15 @@ packaging workflow re-runs it before building and smoke-tests the built executab
 | Unit – mapping | `tests/unit/test_mapping.py` | One-level and multi-level lookups, composite keys, coalesce across sheets, conditional mapping, expressions, image fields, one-to-many collections with relationship filter/sort and item filter, aggregations (sum/max/count/join/avg/min/first/last/count_distinct), missing-reference policies (error/default/ignore/warn), empty foreign keys, duplicate keys (error with no arbitrary pick vs warn), validation rules incl. uniqueness, untrusted formula cells, group contexts, traces with source cells. |
 | Unit – Word | `tests/unit/test_word.py` | Custom markers split across runs (formatting kept), headers, unsafe names; MERGEFIELD simple/complex, unsupported regions; inspector paths for loops/conditions/headers; syntax errors; foreign marker warning; rendering of values, table-row loops, conditional paragraphs, escaping of `<&>`, line breaks, date/decimal/bool formatting, header/footer placeholders; missing-placeholder policies; images (allowed folder, missing, outside); verifier (corrupt ZIP, leftover markers, broken relationships). |
 | Unit – files | `tests/unit/test_files.py` | Filename patterns, Windows reserved names, long names, path traversal, conflict policies (suffix/skip/error/overwrite/reserved), zip-bomb detection. |
+| Unit – Word input spots | `tests/unit/test_spots.py` | Detection of blanks after labels (dots, underscores, ellipsis; repeated labels `tháng (2)`; header parts; short ellipses ignored), empty label/value table cells, content controls (text/drop-down/check box/date/block, tag vs title naming) and legacy FORMTEXT/FORMCHECKBOX fields; detection alone changes nothing; only bound inputs are filled and land in place with their formatting; unbound signature/date lines untouched; check box states both ways; filled cells never become labels; custom-XML binding and stale date removed from filled controls; options switch detectors off. |
 | PoC – merging | `tests/poc/test_merge_poc.py` | Section/header/footer preservation, inheritance options, section breaks, page-number restart; optional LibreOffice rendering check (page count, per-page headers, numbering restart). |
 | Regression – formatting | `tests/regression/test_formatting_preservation.py` | Template vs output: fonts, run formatting, styles, tables, merged cells, numbering, images, header images, page breaks, section layout, fields, hyperlinks; and after merging two rendered documents. |
-| Regression – Office conformance | `tests/regression/test_ooxml_conformance.py`, `tools/ooxml-validator/` | All outputs of customers A and B (separate + merged) and the rich template in `preserve`/`section`/`inherit` merges are validated with **Microsoft's Open XML SDK `OpenXmlValidator`** (DocumentFormat.OpenXml 3.4.1) against Office 2010, Office 2019 and Microsoft 365 – 0 errors required. Needs the .NET 8 SDK (preinstalled on GitHub runners; CI sets `DOCGEN_REQUIRE_OOXML=1` so it cannot be skipped there). |
+| Regression – Office conformance | `tests/regression/test_ooxml_conformance.py`, `tools/ooxml-validator/` | All outputs of customers A, B and C (separate + merged, filled form controls) and the rich template in `preserve`/`section`/`inherit` merges are validated with **Microsoft's Open XML SDK `OpenXmlValidator`** (DocumentFormat.OpenXml 3.4.1) against Office 2010, Office 2019 and Microsoft 365 – 0 errors required. Needs the .NET 8 SDK (preinstalled on GitHub runners; CI sets `DOCGEN_REQUIRE_OOXML=1` so it cannot be skipped there). |
 | Regression – other editors | `tests/regression/test_libreoffice_templates.py` | Sample templates re-saved by LibreOffice (docx → odt → docx, different OOXML producer) still generate complete documents; unbound MERGEFIELDs flattened to `«Name»` text by the editor are filled. |
-| Integration | `tests/integration/test_pipeline.py`, `test_cli.py` | Excel → mapping → context → Word for modes A–E; customer B with the same code; process pool; no overwrite; cancellation (no partial/temp files); collect vs fail-fast; error location; dry run; missing template; unknown placeholder caught before generation; inputs unchanged (hash); unwritable output; CLI commands. |
-| UI | `tests/ui/test_ui.py` (pytest-qt) | All pages render; mapping designer builds a lookup chain + transform and tests it on a record; generation from the UI with **event-loop heartbeat** (max stall asserted < 0.5 s while 30 merged documents are produced); cancel from the UI; Vietnamese catalog. |
+| Integration | `tests/integration/test_pipeline.py`, `test_cli.py` | Excel → mapping → context → Word for modes A–E; customer B with the same code; customer C filling an existing Word form (blanks, controls, form fields, table cells; unbound inputs untouched); process pool; no overwrite; cancellation (no partial/temp files); collect vs fail-fast; error location; dry run; missing template; unknown placeholder caught before generation; inputs unchanged (hash); unwritable output; CLI commands. |
+| UI | `tests/ui/test_ui.py` (pytest-qt) | All pages render; mapping designer builds a lookup chain + transform and tests it on a record; generation from the UI with **event-loop heartbeat** (max stall asserted < 0.5 s while 30 merged documents are produced); cancel from the UI; Templates page lists form inputs of customer C and binding a blank from its combo box re-scans and marks it "will be filled"; Vietnamese catalog. |
 | Architecture | `tests/test_architecture.py` | Core layers do not import Qt; domain does not import infrastructure; no `eval`/`exec`. |
-| Packaging | `packaging/smoke_test.py` | Built `docgen-cli.exe`: version, sample generation, profile validation, 25-document batch through the process pool inside the frozen app, customer B, Open XML SDK validation of the frozen app's outputs; `DocGen.exe --smoke-test` starts and quits. |
+| Packaging | `packaging/smoke_test.py` | Built `docgen-cli.exe`: version, sample generation, profile validation, 25-document batch through the process pool inside the frozen app, customer B, customer C (existing form), Open XML SDK validation of the frozen app's outputs; `DocGen.exe --smoke-test` starts and quits. |
 
 Fixtures are **synthetic and generated in code** (`src/docgen/testing/`): workbooks via openpyxl/xlwt
 (plus an XML patch that inserts cached formula results as Excel does), documents via python-docx with
@@ -53,6 +54,10 @@ Synthetic fixtures do not prove compatibility with every customer file. For each
 - [ ] File names, sub-folders and Unicode names are correct in Explorer; no overwritten files.
 - [ ] The audit JSON/CSV list every unit, error and output path.
 - [ ] UI stays responsive during a large batch; Cancel stops after the current document.
+- [ ] Existing forms: filled blanks keep the label's font/underline; filled content controls show the
+      value (not the grey placeholder) and can still be edited; check boxes show ☒/☐ and toggle when
+      clicked; legacy form fields keep working after "Restrict Editing → Filling in forms";
+      unbound blanks, signature lines and office-use boxes are unchanged.
 
 ## What has *not* been tested yet (honest status)
 
@@ -64,5 +69,6 @@ Synthetic fixtures do not prove compatibility with every customer file. For each
 * Real customer files (none provided yet).
 * The Windows executable on a physical Windows 10/11 machine: the workflow builds and smoke-tests it
   on GitHub's `windows-latest` runner once the repository can be pushed.
-* Very large templates (hundreds of pages), charts, SmartArt, content controls, comments, tracked
-  changes.
+* Very large templates (hundreds of pages), charts, SmartArt, comments, tracked changes. Content
+  controls and legacy form fields are covered by synthetic forms only (python-docx + raw XML as Word
+  writes it), not yet by forms saved by Word itself.

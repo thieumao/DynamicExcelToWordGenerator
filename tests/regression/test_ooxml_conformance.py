@@ -21,7 +21,7 @@ from docgen.domain.profile.io import load_profile
 from docgen.domain.profile.models import OutputKind
 from docgen.infrastructure.word.merger import MergePart, WordMergeEngine
 from docgen.infrastructure.word.renderer import TemplateRenderer
-from docgen.testing.samples import write_customer_a, write_customer_b
+from docgen.testing.samples import write_customer_a, write_customer_b, write_customer_c
 
 from .test_formatting_preservation import CTX, build_rich_template
 
@@ -71,7 +71,7 @@ def run_validator(dll: Path, target: Path, fmt: str = "Office2019") -> tuple[int
 def test_generated_documents_conform_to_office_schemas(validator: Path, tmp_path: Path) -> None:
     corpus = tmp_path / "corpus"
     service = DocumentGenerationService()
-    for writer, name in ((write_customer_a, "a"), (write_customer_b, "b")):
+    for writer, name in ((write_customer_a, "a"), (write_customer_b, "b"), (write_customer_c, "c")):
         profile_path, workbook = writer(tmp_path / f"src_{name}")
         result = service.run(
             GenerationRequest(

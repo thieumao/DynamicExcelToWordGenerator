@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QSpinBox,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -96,6 +97,20 @@ class TemplatesPage(QWidget):
         mrow.addWidget(QLabel(tr("close")))
         mrow.addWidget(self.m_close)
         form.addRow(tr("Placeholder style"), mrow)
+        detect_row = QHBoxLayout()
+        self.d_controls = QCheckBox(tr("Content controls"))
+        self.d_fields = QCheckBox(tr("Form fields"))
+        self.d_blanks = QCheckBox(tr("Blanks after labels (Label: ......)"))
+        for check in (self.d_controls, self.d_fields, self.d_blanks):
+            detect_row.addWidget(check)
+        self.blank_min = QSpinBox()
+        self.blank_min.setRange(3, 50)
+        self.blank_min.setToolTip(tr("Minimum number of dots or underscores for a blank"))
+        self.d_blanks.toggled.connect(self.blank_min.setEnabled)
+        detect_row.addWidget(QLabel(tr("min. dots")))
+        detect_row.addWidget(self.blank_min)
+        detect_row.addStretch(1)
+        form.addRow(tr("Also detect inputs"), detect_row)
         self.include_if = QLineEdit()
         self.include_if.setPlaceholderText("employee.project_count > 0")
         form.addRow(tr("Include only if"), self.include_if)
@@ -118,10 +133,10 @@ class TemplatesPage(QWidget):
         apply.clicked.connect(self._apply)
         form.addRow("", apply)
         rv.addWidget(box)
-        rv.addWidget(QLabel(tr("Detected placeholders")))
-        self.placeholders = QTableWidget(0, 4)
+        rv.addWidget(QLabel(tr("Detected placeholders and inputs")))
+        self.placeholders = QTableWidget(0, 5)
         self.placeholders.setHorizontalHeaderLabels(
-            [tr("Placeholder"), tr("Kind"), tr("Status"), tr("Bound to field")]
+            [tr("Placeholder"), tr("Kind"), tr("Status"), tr("Bound to field"), tr("Text around it")]
         )
         self.placeholders.horizontalHeader().setStretchLastSection(True)
         rv.addWidget(self.placeholders, 1)
@@ -131,6 +146,9 @@ class TemplatesPage(QWidget):
         splitter.addWidget(right)
         splitter.setSizes([330, 870])
         layout.addWidget(splitter, 1)
+        self._pending_rescan = QTimer(self)
+        self._pending_rescan.setSingleShot(True)
+        self._pending_rescan.timeout.connect(self._rescan_current)
         state.profile_changed.connect(self.refresh)
         self.refresh()
 
@@ -224,6 +242,11 @@ class TemplatesPage(QWidget):
         self.marker.setCurrentIndex(self.marker.findData(spec.marker.style.value))
         self.m_open.setText(spec.marker.open)
         self.m_close.setText(spec.marker.close)
+        self.d_controls.setChecked(spec.marker.content_controls)
+        self.d_fields.setChecked(spec.marker.form_fields)
+        self.d_blanks.setChecked(spec.marker.blanks)
+        self.blank_min.setValue(spec.marker.blank_min)
+        self.blank_min.setEnabled(spec.marker.blanks)
         self.include_if.setText(spec.include_if or "")
         self.context_root.setText(spec.context_root or "")
         self.missing.setCurrentText(spec.missing_placeholder.value)
@@ -257,33 +280,53 @@ class TemplatesPage(QWidget):
         if prepared is None:
             self.scan_info.setText("; ".join(i.message for i in issues))
             return
-        rows: list[tuple[str, str, str, str | None]] = []
+        rows: list[tuple[str, str, str, str | None, str]] = []
+        spot_names = {sp.name for sp in prepared.spots}
+        kinds = {
+            "content_control": tr("content control"),
+            "form_field": tr("form field"),
+            "blank": tr("blank"),
+        }
+        for sp in prepared.spots:
+            bound = spec.bindings.get(sp.name) or prepared.bindings.get(sp.name)
+            status = tr("will be filled") if sp.filled else tr("left as is")
+            rows.append((sp.name, kinds.get(sp.kind, sp.kind), status, bound or "", sp.context))
         for name in prepared.inspection.binding_names:
+            if name in spot_names:
+                continue
             bound = prepared.bindings.get(name)
-            rows.append((name, tr("marker"), tr("bound") if bound else tr("unbound"), bound or ""))
+            rows.append((name, tr("marker"), tr("bound") if bound else tr("unbound"), bound or "", ""))
         seen = set()
         for ref in prepared.inspection.refs:
             if ref.binding_name is not None or (ref.path, ref.kind) in seen:
                 continue
             seen.add((ref.path, ref.kind))
             status = tr("unknown field") if ref.path in prepared.unknown_paths else tr("ok")
-            rows.append((ref.path, tr(ref.kind.value), status, None))
-        for name, kind, status, bound in rows:
+            rows.append((ref.path, tr(ref.kind.value), status, None, ""))
+        for name, kind, status, bound, context in rows:
             r = self.placeholders.rowCount()
             self.placeholders.insertRow(r)
-            self.placeholders.setItem(r, 0, QTableWidgetItem(name))
+            name_item = QTableWidgetItem(name)
+            if context:
+                name_item.setToolTip(context)
+            self.placeholders.setItem(r, 0, name_item)
             self.placeholders.setItem(r, 1, QTableWidgetItem(kind))
             st = QTableWidgetItem(status)
             if status in (tr("unbound"), tr("unknown field")):
                 st.setForeground(Qt.GlobalColor.red)
+            elif status == tr("left as is"):
+                st.setForeground(Qt.GlobalColor.darkGray)
             self.placeholders.setItem(r, 2, st)
+            self.placeholders.setItem(r, 4, QTableWidgetItem(context))
             if bound is not None:
                 combo = QComboBox()
                 combo.addItem("", "")
                 for f in fields:
                     combo.addItem(f, f)
                 combo.setCurrentIndex(max(0, combo.findData(bound)))
-                combo.currentIndexChanged.connect(lambda _i, n=name, c=combo: self._bind(n, c.currentData()))
+                combo.currentIndexChanged.connect(
+                    lambda _i, n=name, c=combo: self._bind(n, c.currentData(), rescan=True)
+                )
                 self.placeholders.setCellWidget(r, 3, combo)
         self.placeholders.resizeColumnsToContents()
         problems = [i for i in issues if i.severity.value != "info"]
@@ -293,7 +336,12 @@ class TemplatesPage(QWidget):
         )
         self.state.publish_issues(tr("Template {tid}", tid=spec.id), issues)
 
-    def _bind(self, name: str, path: str) -> None:
+    def _rescan_current(self) -> None:
+        spec = self._current()
+        if spec is not None:
+            self._scan(spec)
+
+    def _bind(self, name: str, path: str, *, rescan: bool = False) -> None:
         spec = self._current()
         if spec is None:
             return
@@ -302,6 +350,8 @@ class TemplatesPage(QWidget):
         else:
             spec.bindings.pop(name, None)
         self.state.mark_edited()
+        if rescan:
+            self._pending_rescan.start(600)  # debounce: several bindings in a row → one re-scan
 
     def _apply(self) -> None:
         spec = self._current()
@@ -318,6 +368,10 @@ class TemplatesPage(QWidget):
                     style=self.marker.currentData(),
                     open=self.m_open.text() or "<<",
                     close=self.m_close.text() or ">>",
+                    content_controls=self.d_controls.isChecked(),
+                    form_fields=self.d_fields.isChecked(),
+                    blanks=self.d_blanks.isChecked(),
+                    blank_min=self.blank_min.value(),
                 ),
                 bindings=spec.bindings,
                 context_root=self.context_root.text().strip() or None,

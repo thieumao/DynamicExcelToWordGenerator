@@ -82,7 +82,24 @@ def main() -> int:
         ]
     )
     assert len(list((work / "out_b").rglob("*.docx"))) == 9
-    validate_outputs([work / "out_a", work / "out_b"], work)
+    # customer C: an existing Word form (blanks, content controls, form fields) filled from Excel
+    c = work / "samples" / "customer_c"
+    run(
+        [
+            cli,
+            "generate",
+            "--profile",
+            str(c / "profile.yaml"),
+            "--excel",
+            str(c / "data" / "NhanVien.xlsx"),
+            "--out",
+            str(work / "out_c"),
+        ]
+    )
+    forms = sorted((work / "out_c").rglob("*.docx"))
+    assert len(forms) == 2, f"expected 2 forms, got {len(forms)}"
+    run([cli, "templates", "scan", str(c / "templates" / "PhieuThongTin.docx")])
+    validate_outputs([work / "out_a", work / "out_b", work / "out_c"], work)
     env = dict(
         os.environ,
         QT_QPA_PLATFORM=os.environ.get("QT_QPA_PLATFORM", "offscreen"),

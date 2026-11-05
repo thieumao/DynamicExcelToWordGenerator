@@ -531,6 +531,18 @@ class MarkerConfig(_Model):
     style: MarkerStyle = MarkerStyle.JINJA
     open: str = Field(default="<<", min_length=1, max_length=10)
     close: str = Field(default=">>", min_length=1, max_length=10)
+    content_controls: bool = Field(
+        default=True, description="fill Word content controls (by tag/title) that are bound"
+    )
+    form_fields: bool = Field(
+        default=True, description="fill legacy FORMTEXT/FORMCHECKBOX fields (by name) that are bound"
+    )
+    blanks: bool = Field(
+        default=True,
+        description="detect 'Label: ......' blanks and empty cells next to a label cell; "
+        "only blanks with an explicit binding are filled",
+    )
+    blank_min: int = Field(default=5, ge=3, le=50, description="minimum dots/underscores for a blank")
 
 
 class SectionConfig(_Model):

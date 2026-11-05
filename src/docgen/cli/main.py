@@ -75,6 +75,11 @@ def cmd_templates_scan(args: argparse.Namespace) -> int:
         print(f"  {ref.kind.value:9} {ref.path}  ({ref.part})")
     for name in result.marker_names:
         print(f"  marker    {name}")
+    from docgen.infrastructure.word.spots import SpotOptions, process_spots
+
+    spots = process_spots(Path(args.docx).read_bytes(), SpotOptions(blank_min=args.blank_min)).spots
+    for spot in spots:
+        print(f"  {spot.kind:15} {spot.name!r:28} [{spot.subtype}]  {spot.context}")
     for err in result.errors:
         print(f"  ERROR {err}")
     for w in result.warnings:
@@ -225,13 +230,15 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
 
 def cmd_samples(args: argparse.Namespace) -> int:
-    from docgen.testing.samples import write_customer_a, write_customer_b
+    from docgen.testing.samples import write_customer_a, write_customer_b, write_customer_c
 
     out = Path(args.directory)
     a = write_customer_a(out / "customer_a", n_employees=args.employees)
     b = write_customer_b(out / "customer_b")
+    c = write_customer_c(out / "customer_c")
     print(f"customer_a: {a[0]}  {a[1]}")
     print(f"customer_b: {b[0]}  {b[1]}")
+    print(f"customer_c: {c[0]}  {c[1]}")
     return 0
 
 
@@ -251,6 +258,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--marker", choices=["jinja", "custom", "mergefield"], default="jinja")
     p.add_argument("--open", default="<<")
     p.add_argument("--close", default=">>")
+    p.add_argument("--blank-min", type=int, default=5, help="minimum dots/underscores for a blank")
     p.set_defaults(func=cmd_templates_scan)
 
     pp = sub.add_parser("profile", help="profile utilities").add_subparsers(dest="sub", required=True)

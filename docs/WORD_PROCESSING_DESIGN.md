@@ -23,6 +23,50 @@ information so the user can review them on the Templates page.
 – use `{%tr for %}` instead), MERGEFIELDs nested inside `IF`/`NEXT` fields, placeholders inside
 text boxes' alternate content may only be partially detected, placeholders inside charts/SmartArt.
 
+### Forms supplied as-is (input spots)
+
+Customers often hand over an **existing form** instead of a prepared template. Many of its inputs have
+no marker at all. The user picks these files in the app (Templates page *Import*, or *Add Word
+files…* on the Generate page). `infrastructure/word/spots.py` then detects three kinds of
+**input spots** on the internal compiled copy; the customer's file is never modified:
+
+| Kind | Detected from | Name used for binding | How it is filled |
+|---|---|---|---|
+| Content control (`content_control`) | `w:sdt` with text, rich text, date, drop-down/combo or check box content | the control's *tag*, else its *title*, else `control_N` | The control stays a form control. `showingPlcHdr` and the placeholder style are removed. A custom-XML `w:dataBinding` is also removed, because otherwise Word would overwrite the value on open. A stale date `fullDate` is removed too. The first text run receives the value, and the other runs are emptied. Check boxes get `☒/☐` and `w14:checked`. |
+| Legacy form field (`form_field`) | `FORMTEXT` / `FORMCHECKBOX` fields (`w:ffData/w:name`) | the field's bookmark name | The field result text is replaced. For a check box, `w:checked w:val` is set. |
+| Blank (`blank`) | A run of `.`, `_` or `…` (minimum `blank_min`, where `…` counts as 3), or underlined spaces, after a label such as `Họ và tên: ........`; also an empty table cell to the right of a label cell | the label text, e.g. `Họ và tên`; a repeated label gets `tháng (2)` | The filler is replaced by the value. Text before and after it, and its run formatting, are kept. |
+
+Rules:
+
+* **Detection never changes anything.** A spot is converted only when it is bound:
+  * explicitly, through `templates[].bindings` (`{"Họ và tên": nhan_vien.ho_ten}`);
+  * or, for controls and form fields only, automatically by name. This uses the same rule as
+    custom markers.
+
+  Blanks always need an explicit binding. This keeps signature lines, "for office use only" boxes
+  and date lines that must stay empty exactly as they are. Unbound spots are reported as
+  information (`template.spot_unbound`, `template.blanks_unbound`).
+* Detection can be switched off per template: `marker.content_controls`, `marker.form_fields`,
+  `marker.blanks` and `marker.blank_min`. It works alongside any marker style, so one form can mix
+  `{{ }}`/`<<…>>` markers with blanks and controls.
+* Check boxes accept `true/false`, `1/0`, `x`, `có/không`, `yes/no` and similar values. In a template
+  they are available as the filters `checkbox_symbol` / `checkbox_value`.
+* The Templates page lists every spot with:
+  * its kind;
+  * its status ("will be filled" / "left as is");
+  * a field combo box;
+  * the surrounding sentence, so the user can tell e.g. which `tháng` is meant.
+
+  Changing a binding rescans the template.
+
+**Limitations of spot detection:**
+* Drop-down *legacy* form fields (`FORMDROPDOWN`) and picture content controls are reported and
+  left unchanged.
+* Text inside fields or inside other controls is never treated as a blank.
+* Only the first 300 empty label/value table cells per part are considered. List-style tables
+  (header row + empty rows) are not detected as blanks; use `{%tr for %}` for those.
+* `.doc` (Word 97–2003) files must first be saved as `.docx` in Word.
+
 ## 2. Inspection (before generation)
 
 `infrastructure/word/inspector.py` reads `document.xml`, headers, footers, footnotes and endnotes,
@@ -150,8 +194,9 @@ for custom markers) in addition to `{{ }}`/`{% %}`. Covered by
 * Page numbering across parts continues by default; per-part restart is opt-in.
 * Style conflicts: with default settings the first template's style definitions win for identical
   style IDs. Use `preserve_styles` or distinct style names when templates must look different.
-* Content controls (SDT) bound to custom XML, comments and tracked changes are copied as-is but not
-  specifically tested.
+* Content controls are filled as described in §1 and checked by the Open XML SDK. Controls that are
+  not bound in DocGen keep everything, including any custom XML binding. Comments and tracked
+  changes are copied as-is but not specifically tested.
 * Text boxes/shapes and SmartArt are copied by docxcompose; placeholders inside them are rendered by
   docxtpl when they are in the main document part, but are not part of the regression suite.
 

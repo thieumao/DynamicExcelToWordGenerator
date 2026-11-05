@@ -10,7 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from docgen.domain.profile.io import load_profile
 from docgen.domain.profile.models import Profile
-from docgen.testing.samples import write_customer_a, write_customer_b
+from docgen.testing.samples import write_customer_a, write_customer_b, write_customer_c
 
 
 @dataclass
@@ -33,4 +33,10 @@ def sample_a(tmp_path: Path) -> Sample:
 @pytest.fixture()
 def sample_b(tmp_path: Path) -> Sample:
     profile_path, workbook = write_customer_b(tmp_path / "customer_b")
+    return Sample(profile_path, workbook, load_profile(profile_path))
+
+
+@pytest.fixture()
+def sample_c(tmp_path: Path) -> Sample:
+    profile_path, workbook = write_customer_c(tmp_path / "customer_c")
     return Sample(profile_path, workbook, load_profile(profile_path))

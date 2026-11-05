@@ -158,6 +158,6 @@ def test_dependency_order_is_deterministic():
     assert names.index("x.b") < names.index("x.total") and not order.cycles
 
 
-def test_sample_profiles_are_valid(sample_a, sample_b):
-    for sample in (sample_a, sample_b):
+def test_sample_profiles_are_valid(sample_a, sample_b, sample_c):
+    for sample in (sample_a, sample_b, sample_c):
         assert codes(sample.profile) == []

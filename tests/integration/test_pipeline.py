@@ -249,3 +249,36 @@ def test_output_dir_must_be_writable(sample_a, tmp_path, bad_dir):
     blocker.write_text("x")
     result = run(sample_a, blocker / "sub")
     assert result.status == "failed" and any(i.code == "output.not_writable" for i in result.issues)
+
+
+def test_customer_c_fills_an_existing_word_form(sample_c, tmp_path):
+    """The customer's Word file is a form without placeholders (blanks, controls, form fields)."""
+    result = run(sample_c, tmp_path / "out")
+    assert result.status == "completed", [str(i) for i in result.all_issues()]
+    assert sorted(Path(p).name for p in result.documents) == ["PhieuTT_NV01.docx", "PhieuTT_NV02.docx"]
+    import zipfile
+
+    from lxml import etree
+
+    w = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    root = etree.fromstring(zipfile.ZipFile(tmp_path / "out" / "PhieuTT_NV01.docx").read("word/document.xml"))
+    lines = ["".join(t.text or "" for t in p.iter(w + "t")) for p in root.iter(w + "p")]
+    text = "\n".join(lines)
+    for expected in (
+        "Họ và tên: Nguyễn Văn Ánh",
+        "Sinh ngày 05 tháng 09 năm 1990, tại: Hà Nội",
+        "Phòng ban: Phòng Kế toán",
+        "Chức vụ: Trưởng phòng",
+        "Ngày vào làm: 01/03/2020",
+        "Đảng viên: ☒",
+        "Mã số thuế cá nhân: 0101234567",
+        "001090001234",
+        "anh@example.vn",
+    ):
+        assert expected in text, expected
+    # inputs that are not bound stay exactly as the customer designed them
+    assert "Hà Nội, ngày ...... tháng ...... năm ........" in text
+    assert "Người khai ký tên: .........................................." in text
+    assert "Nhấn để nhập văn bản." in text  # unbound 'ghi_chu' control keeps its placeholder
+    infos = [i.code for i in result.issues]
+    assert "template.spot_unbound" in infos and "template.blanks_unbound" in infos

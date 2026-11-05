@@ -1,0 +1,81 @@
+schema_version: 1
+profile:
+  id: customer_c
+  name: "Customer C – Phiếu thông tin nhân viên (biểu mẫu Word có sẵn)"
+  version: 1
+  description: >
+    The customer's Word file is an existing form without placeholders: blanks after labels,
+    content controls, legacy form fields and a label/value table. Bindings map each input to
+    an Excel field; unbound inputs (signature, date of signing) stay empty.
+excel:
+  primary: ds
+  sheets:
+    - id: ds
+      match: {name: "DS nhân viên"}
+      columns:
+        - {id: ma, header: "Mã NV", type: string}
+        - {id: ho_ten, header: "Họ và tên"}
+        - {id: ngay_sinh, header: "Ngày sinh", type: date}
+        - {id: noi_sinh, header: "Nơi sinh"}
+        - {id: cccd, header: "Số CCCD", type: string}
+        - {id: dien_thoai, header: "Điện thoại", type: string}
+        - {id: email, header: "Email", required: false}
+        - {id: ma_pb, header: "Mã phòng", type: string}
+        - {id: ma_cv, header: "Mã chức vụ", type: string}
+        - {id: ngay_vao, header: "Ngày vào làm", type: date}
+        - {id: dang_vien, header: "Đảng viên"}
+        - {id: ket_hon, header: "Đã kết hôn"}
+        - {id: mst, header: "MST", type: string, required: false}
+    - id: pb
+      match: {name: "Phòng ban"}
+      columns:
+        - {id: ma, header: "Mã phòng", type: string}
+        - {id: ten, header: "Tên phòng"}
+    - id: cv
+      match: {name: "Chức vụ"}
+      columns:
+        - {id: ma, header: "Mã chức vụ", type: string}
+        - {id: ten, header: "Tên chức vụ"}
+relationships:
+  - {id: ds_pb, from: ds, to: pb, keys: [{from: ma_pb, to: ma}]}
+  - {id: ds_cv, from: ds, to: cv, keys: [{from: ma_cv, to: ma}]}
+fields:
+  - {name: nhan_vien.ma, source: ma}
+  - {name: nhan_vien.ho_ten, source: ho_ten, transforms: [trim, title_case]}
+  - {name: nhan_vien.sinh_ngay, source: ngay_sinh, transforms: [{format_date: {format: "%d"}}]}
+  - {name: nhan_vien.sinh_thang, source: ngay_sinh, transforms: [{format_date: {format: "%m"}}]}
+  - {name: nhan_vien.sinh_nam, source: ngay_sinh, transforms: [{format_date: {format: "%Y"}}]}
+  - {name: nhan_vien.noi_sinh, source: noi_sinh}
+  - {name: nhan_vien.cccd, source: cccd}
+  - {name: nhan_vien.dien_thoai, source: dien_thoai}
+  - {name: nhan_vien.email, source: email, default: "—"}
+  - {name: nhan_vien.phong_ban, path: ds_pb.ten}
+  - {name: nhan_vien.chuc_vu, path: ds_cv.ten}
+  - {name: nhan_vien.ngay_vao, source: ngay_vao, transforms: [format_date]}
+  - {name: nhan_vien.dang_vien, source: dang_vien}
+  - {name: nhan_vien.ket_hon, source: ket_hon}
+  - {name: nhan_vien.mst, source: mst, default: "(chưa có)"}
+templates:
+  - id: phieu
+    file: templates/PhieuThongTin.docx
+    missing_placeholder: error
+    bindings:
+      "Họ và tên": nhan_vien.ho_ten
+      "Sinh ngày": nhan_vien.sinh_ngay
+      "tháng": nhan_vien.sinh_thang
+      "năm": nhan_vien.sinh_nam
+      "tại": nhan_vien.noi_sinh
+      "Số CCCD": nhan_vien.cccd
+      "Điện thoại": nhan_vien.dien_thoai
+      "Email": nhan_vien.email
+      phong_ban: nhan_vien.phong_ban
+      "Chức vụ": nhan_vien.chuc_vu
+      NgayVao: nhan_vien.ngay_vao
+      dang_vien: nhan_vien.dang_vien
+      MST: nhan_vien.mst
+      KetHon: nhan_vien.ket_hon
+generation:
+  unit: record
+  output: separate
+output:
+  individual_filename: "PhieuTT_{nhan_vien.ma}.docx"

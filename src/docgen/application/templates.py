@@ -15,6 +15,7 @@ from docgen.infrastructure.word.inspector import (
     compile_template,
     inspect_compiled,
 )
+from docgen.infrastructure.word.spots import KIND_BLANK, Spot, SpotOptions, process_spots
 
 
 @dataclass(slots=True)
@@ -27,6 +28,15 @@ class PreparedTemplate:
     """placeholder name -> context path (explicit or auto-resolved)."""
     unbound: list[str] = field(default_factory=list)
     unknown_paths: list[str] = field(default_factory=list)
+    spots: list[Spot] = field(default_factory=list)
+    """Form inputs found in the document (content controls, form fields, blanks)."""
+
+
+def spot_options(spec: TemplateSpec) -> SpotOptions:
+    m = spec.marker
+    return SpotOptions(
+        content_controls=m.content_controls, form_fields=m.form_fields, blanks=m.blanks, blank_min=m.blank_min
+    )
 
 
 def resolve_template_path(profile_dir: Path, spec: TemplateSpec) -> Path:
@@ -79,6 +89,22 @@ def prepare_template(
         check_zip(path, ZipLimits(max_file_bytes=200 * 1024 * 1024))
         data = path.read_bytes()
         converted = compile_template(data, spec.marker)
+        schema = schema or build_schema(profile, unit)
+        # Input spots of forms (content controls, legacy form fields, "Label: ....." blanks):
+        # detect them, then convert only those bound to data (explicitly, or by exact name
+        # for controls/fields). Unbound spots are left exactly as they are.
+        options = spot_options(spec)
+        detected = process_spots(converted.data, options)
+        spot_paths: dict[str, str] = {}
+        for spot in detected.spots:
+            path_for = spec.bindings.get(spot.name)
+            if path_for is None and spot.kind != KIND_BLANK:
+                path_for = auto_bind(spot.name, schema)
+            if path_for:
+                spot_paths[spot.name] = path_for
+        filled = process_spots(converted.data, options, fill=lambda s: s.name in spot_paths)
+        converted.data = filled.data
+        converted.problems.extend(filled.problems)
         inspection = inspect_compiled(converted.data)
     except (UnsafeFileError, OSError, ValueError) as exc:
         issues.append(
@@ -109,7 +135,33 @@ def prepare_template(
             make_issue("template.marker", Severity.WARNING, Category.TEMPLATE, warning, template=spec.id)
         )
 
-    if not inspection.refs and not inspection.errors:
+    unfilled = [sp for sp in filled.spots if not sp.filled]
+    for sp in unfilled:
+        if sp.kind != KIND_BLANK:
+            issues.append(
+                make_issue(
+                    "template.spot_unbound",
+                    Severity.INFO,
+                    Category.PLACEHOLDER,
+                    f"Input '{sp.name}' ({sp.kind}) is not bound to any field and stays as it is",
+                    suggestion="Bind it on the Templates page if it must be filled from Excel.",
+                    template=spec.id,
+                    placeholder=sp.name,
+                )
+            )
+    blanks_left = sum(1 for sp in unfilled if sp.kind == KIND_BLANK)
+    if blanks_left:
+        issues.append(
+            make_issue(
+                "template.blanks_unbound",
+                Severity.INFO,
+                Category.PLACEHOLDER,
+                f"{blanks_left} blank(s) such as 'Label: ......' are not bound and stay empty",
+                suggestion="Bind the blanks that must be filled on the Templates page.",
+                template=spec.id,
+            )
+        )
+    if not inspection.refs and not inspection.errors and not filled.spots:
         issues.append(
             make_issue(
                 "template.no_placeholders",
@@ -121,8 +173,7 @@ def prepare_template(
                 template=spec.id,
             )
         )
-    schema = schema or build_schema(profile, unit)
-    prepared = PreparedTemplate(spec, path, converted.data, inspection)
+    prepared = PreparedTemplate(spec, path, converted.data, inspection, spots=list(filled.spots))
     severity = {
         MissingPolicy.ERROR: Severity.ERROR,
         MissingPolicy.WARN: Severity.WARNING,

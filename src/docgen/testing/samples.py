@@ -435,3 +435,192 @@ def write_customer_b(directory: Path) -> tuple[Path, Path]:
     _confirmation_template(directory / "templates" / "XacNhan.docx")
     workbook = build_xlsx(directory / "data" / "HopDong.xlsx", customer_b_sheets())
     return profile, workbook
+
+
+# ===================================================================== C
+CUSTOMER_C_PROFILE = """\
+schema_version: 1
+profile:
+  id: customer_c
+  name: "Customer C – Phiếu thông tin nhân viên (biểu mẫu Word có sẵn)"
+  version: 1
+  description: >
+    The customer's Word file is an existing form without placeholders: blanks after labels,
+    content controls, legacy form fields and a label/value table. Bindings map each input to
+    an Excel field; unbound inputs (signature, date of signing) stay empty.
+excel:
+  primary: ds
+  sheets:
+    - id: ds
+      match: {name: "DS nhân viên"}
+      columns:
+        - {id: ma, header: "Mã NV", type: string}
+        - {id: ho_ten, header: "Họ và tên"}
+        - {id: ngay_sinh, header: "Ngày sinh", type: date}
+        - {id: noi_sinh, header: "Nơi sinh"}
+        - {id: cccd, header: "Số CCCD", type: string}
+        - {id: dien_thoai, header: "Điện thoại", type: string}
+        - {id: email, header: "Email", required: false}
+        - {id: ma_pb, header: "Mã phòng", type: string}
+        - {id: ma_cv, header: "Mã chức vụ", type: string}
+        - {id: ngay_vao, header: "Ngày vào làm", type: date}
+        - {id: dang_vien, header: "Đảng viên"}
+        - {id: ket_hon, header: "Đã kết hôn"}
+        - {id: mst, header: "MST", type: string, required: false}
+    - id: pb
+      match: {name: "Phòng ban"}
+      columns:
+        - {id: ma, header: "Mã phòng", type: string}
+        - {id: ten, header: "Tên phòng"}
+    - id: cv
+      match: {name: "Chức vụ"}
+      columns:
+        - {id: ma, header: "Mã chức vụ", type: string}
+        - {id: ten, header: "Tên chức vụ"}
+relationships:
+  - {id: ds_pb, from: ds, to: pb, keys: [{from: ma_pb, to: ma}]}
+  - {id: ds_cv, from: ds, to: cv, keys: [{from: ma_cv, to: ma}]}
+fields:
+  - {name: nhan_vien.ma, source: ma}
+  - {name: nhan_vien.ho_ten, source: ho_ten, transforms: [trim, title_case]}
+  - {name: nhan_vien.sinh_ngay, source: ngay_sinh, transforms: [{format_date: {format: "%d"}}]}
+  - {name: nhan_vien.sinh_thang, source: ngay_sinh, transforms: [{format_date: {format: "%m"}}]}
+  - {name: nhan_vien.sinh_nam, source: ngay_sinh, transforms: [{format_date: {format: "%Y"}}]}
+  - {name: nhan_vien.noi_sinh, source: noi_sinh}
+  - {name: nhan_vien.cccd, source: cccd}
+  - {name: nhan_vien.dien_thoai, source: dien_thoai}
+  - {name: nhan_vien.email, source: email, default: "—"}
+  - {name: nhan_vien.phong_ban, path: ds_pb.ten}
+  - {name: nhan_vien.chuc_vu, path: ds_cv.ten}
+  - {name: nhan_vien.ngay_vao, source: ngay_vao, transforms: [format_date]}
+  - {name: nhan_vien.dang_vien, source: dang_vien}
+  - {name: nhan_vien.ket_hon, source: ket_hon}
+  - {name: nhan_vien.mst, source: mst, default: "(chưa có)"}
+templates:
+  - id: phieu
+    file: templates/PhieuThongTin.docx
+    missing_placeholder: error
+    bindings:
+      "Họ và tên": nhan_vien.ho_ten
+      "Sinh ngày": nhan_vien.sinh_ngay
+      "tháng": nhan_vien.sinh_thang
+      "năm": nhan_vien.sinh_nam
+      "tại": nhan_vien.noi_sinh
+      "Số CCCD": nhan_vien.cccd
+      "Điện thoại": nhan_vien.dien_thoai
+      "Email": nhan_vien.email
+      phong_ban: nhan_vien.phong_ban
+      "Chức vụ": nhan_vien.chuc_vu
+      NgayVao: nhan_vien.ngay_vao
+      dang_vien: nhan_vien.dang_vien
+      MST: nhan_vien.mst
+      KetHon: nhan_vien.ket_hon
+generation:
+  unit: record
+  output: separate
+output:
+  individual_filename: "PhieuTT_{nhan_vien.ma}.docx"
+"""
+
+
+def customer_c_sheets() -> dict[str, list[list[object]]]:
+    return {
+        "DS nhân viên": [
+            [
+                "Mã NV",
+                "Họ và tên",
+                "Ngày sinh",
+                "Nơi sinh",
+                "Số CCCD",
+                "Điện thoại",
+                "Email",
+                "Mã phòng",
+                "Mã chức vụ",
+                "Ngày vào làm",
+                "Đảng viên",
+                "Đã kết hôn",
+                "MST",
+            ],
+            [
+                "NV01",
+                "nguyễn văn ánh",
+                dt.datetime(1990, 9, 5),
+                "Hà Nội",
+                "001090001234",
+                "0912 345 678",
+                "anh@example.vn",
+                "KT",
+                "TP",
+                dt.datetime(2020, 3, 1),
+                "Có",
+                "Không",
+                "0101234567",
+            ],
+            [
+                "NV02",
+                "trần thị bình",
+                dt.datetime(1995, 12, 24),
+                "Đà Nẵng",
+                "048195002345",
+                "0905 111 222",
+                None,
+                "IT",
+                "NV",
+                dt.datetime(2022, 7, 15),
+                "Không",
+                "Có",
+                None,
+            ],
+        ],
+        "Phòng ban": [["Mã phòng", "Tên phòng"], ["KT", "Phòng Kế toán"], ["IT", "Phòng Công nghệ"]],
+        "Chức vụ": [["Mã chức vụ", "Tên chức vụ"], ["TP", "Trưởng phòng"], ["NV", "Nhân viên"]],
+    }
+
+
+def _form_template(path: Path) -> None:
+    """A customer form as people make them in Word: no placeholders, just inputs."""
+    from docgen.testing.docx_builder import (
+        add_block_content_control,
+        add_content_control,
+        add_form_checkbox,
+        add_form_text,
+    )
+
+    doc = Document()
+    _style_document(doc)
+    doc.sections[0].header.paragraphs[0].text = "CÔNG TY TNHH ABC – Biểu mẫu NS-01"
+    doc.add_heading("PHIẾU THÔNG TIN NHÂN VIÊN", level=1)
+    doc.add_paragraph("Họ và tên: ................................................")
+    doc.add_paragraph("Sinh ngày ........ tháng ........ năm ............, tại: ____________________")
+    p = doc.add_paragraph("Phòng ban: ")
+    add_content_control(p, "phong_ban", alias="Phòng ban")
+    p = doc.add_paragraph("Chức vụ: ")
+    add_content_control(p, None, alias="Chức vụ", kind="dropdown", items=("Nhân viên", "Trưởng phòng"))
+    p = doc.add_paragraph("Ngày vào làm: ")
+    add_content_control(p, "NgayVao", kind="date", placeholder="Chọn ngày.")
+    p = doc.add_paragraph("Đảng viên: ")
+    add_content_control(p, "dang_vien", kind="checkbox")
+    p = doc.add_paragraph("Mã số thuế cá nhân: ")
+    add_form_text(p, "MST")
+    p = doc.add_paragraph("Đã kết hôn ")
+    add_form_checkbox(p, "KetHon")
+    table = doc.add_table(rows=2, cols=4)
+    table.style = "Table Grid"
+    table.cell(0, 0).text = "Số CCCD"
+    table.cell(0, 2).text = "Điện thoại"
+    table.cell(1, 0).text = "Email"
+    doc.add_paragraph("Ghi chú của phòng nhân sự:")
+    add_block_content_control(doc, "ghi_chu", alias="Ghi chú")
+    doc.add_paragraph("Hà Nội, ngày ...... tháng ...... năm ........")
+    doc.add_paragraph("Người khai ký tên: ..........................................")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(path))
+
+
+def write_customer_c(directory: Path) -> tuple[Path, Path]:
+    directory.mkdir(parents=True, exist_ok=True)
+    profile = directory / "profile.yaml"
+    profile.write_text(CUSTOMER_C_PROFILE, encoding="utf-8")
+    _form_template(directory / "templates" / "PhieuThongTin.docx")
+    workbook = build_xlsx(directory / "data" / "NhanVien.xlsx", customer_c_sheets())
+    return profile, workbook

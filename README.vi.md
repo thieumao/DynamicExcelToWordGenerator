@@ -16,6 +16,8 @@
 
 **Word**
 - Hỗ trợ 3 kiểu đánh dấu: `{{ ... }}` (Jinja), `<<...>>` tự định nghĩa, và MERGEFIELD.
+- Dùng được **file Word có sẵn của khách hàng** mà không cần đánh dấu. Ứng dụng tự tìm các chỗ trống sau nhãn (`Họ và tên: ......`), ô bảng trống cạnh ô nhãn, ô nhập liệu (content control) và form field. Chỗ nào được gắn với dữ liệu thì được điền; chỗ không gắn (chữ ký, ô dành cho cán bộ) giữ nguyên.
+- Người dùng tự chọn file Word ngay trong ứng dụng: nút *Nhập…* ở trang Template Word, hoặc *Thêm file Word…* ở trang Sinh tài liệu.
 - Gộp nhiều template thành một tài liệu mà vẫn giữ hướng trang, lề, header/footer riêng của từng phần.
 
 **Sinh tài liệu**
@@ -32,7 +34,7 @@
 
 ```bash
 uv sync --extra gui
-uv run docgen samples samples          # tạo lại dữ liệu mẫu customer_a và customer_b
+uv run docgen samples samples          # tạo lại dữ liệu mẫu customer_a, customer_b, customer_c
 uv run docgen-gui                      # mở ứng dụng desktop
 uv run docgen generate --profile samples/customer_a/profile.yaml \
   --excel samples/customer_a/data/HR.xlsx --out output/customer_a

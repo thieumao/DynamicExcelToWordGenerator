@@ -22,6 +22,9 @@ Excel (.xlsx/.xlsm/.xls/.csv) ──► profile: sheets · relationships · fiel
   conditional mapping, expressions (sandboxed), Vietnamese number-to-words, locale formatting.
 * Explicit policies for missing references and duplicate keys – never an arbitrary pick.
 * Formula cells without stored results are detected and never used silently.
+* Works with the customer's **existing Word forms**: blanks after labels (`Họ và tên: ......`),
+  empty label/value table cells, content controls and legacy form fields are detected and – once
+  bound to a field – filled; unbound inputs (signatures, office-use boxes) stay untouched.
 * Multiple templates per document; merge keeps each template's orientation, margins and
   headers/footers; repeating tables, conditional sections, images.
 * Generation modes: single, batch, grouped, merged, batch merged; safe file naming, no overwrites,
@@ -33,7 +36,7 @@ Excel (.xlsx/.xlsm/.xls/.csv) ──► profile: sheets · relationships · fiel
 
 ```bash
 uv sync --extra gui
-uv run docgen samples samples                      # (re)create sample customers A and B
+uv run docgen samples samples                      # (re)create sample customers A, B and C
 uv run docgen-gui                                  # desktop app
 uv run docgen generate --profile samples/customer_a/profile.yaml \
   --excel samples/customer_a/data/HR.xlsx --out output/customer_a
@@ -68,7 +71,7 @@ src/docgen/infrastructure  Excel readers, Word inspector/renderer/merger/verifie
 src/docgen/ui              PySide6 desktop application
 src/docgen/cli             command-line interface
 src/docgen/testing         synthetic fixture builders and sample customers
-samples/                   customer_a (Jinja) and customer_b (<<markers>>, MERGEFIELD) examples
+samples/                   customer_a (Jinja), customer_b (<<markers>>, MERGEFIELD), customer_c (existing form)
 tests/                     unit, integration, PoC, regression, UI, architecture tests
 benchmarks/                reproducible performance measurements
 packaging/                 PyInstaller spec, entry points, smoke test

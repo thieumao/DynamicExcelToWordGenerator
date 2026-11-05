@@ -171,3 +171,42 @@ def test_vietnamese_catalog_is_complete_for_ui():
         assert tr("{errors} error(s), {warnings} warning(s)", errors=1, warnings=2) == "1 lỗi, 2 cảnh báo"
     finally:
         set_language("en")
+
+
+def test_templates_page_lists_form_inputs_and_binding_fills_them(qtbot, tmp_path, no_modal_dialogs):
+    from docgen.testing.samples import write_customer_c
+
+    set_language("en")
+    state = AppState(tmp_path / "home")
+    profile, workbook = write_customer_c(tmp_path / "src")
+    state.repo.import_bundle(profile)
+    shutil.copytree(
+        profile.parent / "templates", state.repo.directory("customer_c") / "templates", dirs_exist_ok=True
+    )
+    state.open_profile("customer_c")
+    win = MainWindow(state)
+    qtbot.addWidget(win)
+    win.show()
+    page = win.pages["templates"]
+    win.go("templates")
+    table = page.placeholders
+
+    def rows() -> dict[str, tuple[str, str]]:
+        return {
+            table.item(r, 0).text(): (table.item(r, 1).text(), table.item(r, 2).text())
+            for r in range(table.rowCount())
+        }
+
+    qtbot.waitUntil(lambda: "Người khai ký tên" in rows(), timeout=20000)
+    current = rows()
+    assert current["Họ và tên"] == ("blank", "will be filled")
+    assert current["phong_ban"] == ("content control", "will be filled")
+    assert current["MST"] == ("form field", "will be filled")
+    assert current["Người khai ký tên"] == ("blank", "left as is")
+    # bind the signature date blank to a field -> after the debounced re-scan it will be filled
+    row = next(r for r in range(table.rowCount()) if table.item(r, 0).text() == "ngày")
+    combo = table.cellWidget(row, 3)
+    combo.setCurrentIndex(combo.findData("nhan_vien.sinh_ngay"))
+    assert state.profile.templates[0].bindings["ngày"] == "nhan_vien.sinh_ngay"
+    qtbot.waitUntil(lambda: rows().get("ngày", ("", ""))[1] == "will be filled", timeout=20000)
+    assert not no_modal_dialogs

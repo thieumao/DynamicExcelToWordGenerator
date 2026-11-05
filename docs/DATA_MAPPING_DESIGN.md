@@ -7,7 +7,8 @@ by Pydantic (`src/docgen/domain/profile/models.py`); the JSON Schema can be expo
 
 Complete working examples: `samples/customer_a/profile.yaml` (Jinja templates, 5 sheets, chained
 lookups, one-to-many) and `samples/customer_b/profile.yaml` (Vietnamese headers, header on row 4,
-composite key, `<<...>>` markers, MERGEFIELDs).
+composite key, `<<...>>` markers, MERGEFIELDs) and `samples/customer_c/profile.yaml` (an existing
+Word form whose blanks, content controls and form fields are bound to fields).
 
 > YAML note: DocGen reads YAML with **YAML 1.2 booleans** – only `true`/`false` are booleans.
 > `yes`, `no`, `on`, `off`, `Y`, `N` stay text (PyYAML's default YAML 1.1 rules would silently turn
@@ -225,8 +226,34 @@ Expressions are **Jinja expressions** evaluated in an immutable sandbox (no Pyth
 | Lists | `split`, `join`, `lines`, `first`, `last`, `count`, `sum`, `unique` |
 | Numbers/dates | `round{decimals}`, `multiply{by}`, `add{value}`, `add_days{days}` |
 
+| Check boxes | `checkbox_symbol{checked,unchecked}` (☒/☐), `checkbox_value` (1/0) – used automatically for bound Word check boxes |
+
 Formatting defaults come from `formatting:` (`dd/mm/yyyy`, `1.234.567,5`, `15.000.000 ₫`).
 Parameters are validated statically (unknown transform, unknown/missing parameter, invalid choice).
+
+## 7a. Templates: markers, input spots and bindings
+
+```yaml
+templates:
+  - id: phieu
+    file: templates/PhieuThongTin.docx      # copied into the profile; the original is never changed
+    marker:
+      style: jinja                          # jinja | custom (open/close) | mergefield
+      content_controls: true                # also detect Word content controls
+      form_fields: true                     # ... legacy FORMTEXT / FORMCHECKBOX fields
+      blanks: true                          # ... "Label: ......" blanks and empty label/value cells
+      blank_min: 5                          # minimum dots/underscores for a blank (3-50)
+    bindings:                               # name in the document -> field path
+      "Họ và tên": nhan_vien.ho_ten         # blank after the label "Họ và tên:"
+      "tháng": nhan_vien.sinh_thang         # first "tháng ....."; the second one is "tháng (2)"
+      phong_ban: nhan_vien.phong_ban        # content control with tag "phong_ban"
+      KetHon: nhan_vien.ket_hon             # legacy check box form field
+```
+
+`bindings` serves custom markers, MERGEFIELDs and input spots alike. Content controls and form
+fields whose name matches a field are bound automatically. Blanks are bound only explicitly, and
+unbound inputs are left exactly as they are in the customer's document (see
+[WORD_PROCESSING_DESIGN.md](WORD_PROCESSING_DESIGN.md#forms-supplied-as-is-input-spots)).
 
 ## 8. Generation units and modes
 

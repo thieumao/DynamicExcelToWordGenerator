@@ -10,6 +10,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -97,10 +98,23 @@ class GeneratePage(QWidget):
         self.workers.setSpecialValueText(tr("automatic"))
         form.addRow(tr("Parallel workers"), self.workers)
         top.addWidget(box, 3)
-        tbox = QGroupBox(tr("Templates"))
+        tbox = QGroupBox(tr("Word files"))
         tl = QVBoxLayout(tbox)
         self.templates = QListWidget()
         tl.addWidget(self.templates)
+        add_word = button(tr("Add Word files…"))
+        add_word.setToolTip(
+            tr(
+                "Choose the customer's Word files (.docx). They are copied into the profile; "
+                "the originals are never modified."
+            )
+        )
+        add_word.clicked.connect(self._add_word_files)
+        tl.addWidget(add_word)
+        self.word_hint = QLabel()
+        self.word_hint.setWordWrap(True)
+        self.word_hint.setObjectName("Hint")
+        tl.addWidget(self.word_hint)
         top.addWidget(tbox, 2)
         layout.addLayout(top)
 
@@ -155,6 +169,39 @@ class GeneratePage(QWidget):
                 item.setCheckState(Qt.CheckState.Checked if t.enabled else Qt.CheckState.Unchecked)
                 self.templates.addItem(item)
         self._mode_changed()
+
+    def _add_word_files(self) -> None:
+        p = self.state.profile
+        if p is None:
+            error(self, tr("Open a profile first."))
+            return
+        files, _ = QFileDialog.getOpenFileNames(self, tr("Add Word files"), "", "Word (*.docx)")
+        if not files:
+            return
+        from docgen.application.workbook import suggest_identifier
+        from docgen.domain.profile.models import TemplateSpec
+
+        added = []
+        for name in files:
+            try:
+                rel = self.state.repo.import_template(p.profile.id, Path(name))
+            except (OSError, ValueError) as exc:
+                error(self, str(exc))
+                continue
+            tid = suggest_identifier(Path(name).stem, {t.id for t in p.templates})
+            p.templates.append(TemplateSpec(id=tid, file=rel))
+            added.append(tid)
+        if added:
+            p.merge.order = [t.id for t in p.ordered_templates()]
+            self.state.mark_edited()
+            self.refresh()
+            self.word_hint.setText(
+                tr(
+                    "Added: {ids}. Open the Word templates page to bind the inputs found in them "
+                    "(blanks, content controls, form fields) to Excel fields.",
+                    ids=", ".join(added),
+                )
+            )
 
     def _mode_changed(self) -> None:
         code = self.mode.currentData()

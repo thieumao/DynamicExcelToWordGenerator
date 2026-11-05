@@ -382,6 +382,23 @@ def _lines(v: Any, ctx: TransformContext) -> str:
     return "\n".join(_text(x) for x in _iter(v) if not V.is_empty(x))
 
 
+def _is_checked(v: Any) -> bool:
+    if V.is_empty(v):
+        return False
+    try:
+        return V.to_bool(v)
+    except V.ConversionError:
+        return True  # any other non-empty mark ("✓", "x", a name) means checked
+
+
+def _checkbox_symbol(v: Any, ctx: TransformContext, checked: str = "☒", unchecked: str = "☐") -> str:
+    return checked if _is_checked(v) else unchecked
+
+
+def _checkbox_value(v: Any, ctx: TransformContext) -> str:
+    return "1" if _is_checked(v) else "0"
+
+
 def _P(
     type_: str,
     required: bool = False,
@@ -478,6 +495,21 @@ def build_default_registry() -> TransformRegistry:
             "Yes/No text",
             {"true": _P("str"), "false": _P("str")},
             category="format",
+        ),
+        TransformDef(
+            "checkbox_symbol",
+            _checkbox_symbol,
+            "Check box symbol from yes/no",
+            {"checked": _P("str", default="☒"), "unchecked": _P("str", default="☐")},
+            category="format",
+            accepts_empty=True,
+        ),
+        TransformDef(
+            "checkbox_value",
+            _checkbox_value,
+            "Check box state from yes/no",
+            category="format",
+            accepts_empty=True,
         ),
         TransformDef(
             "number_to_words_vi",
