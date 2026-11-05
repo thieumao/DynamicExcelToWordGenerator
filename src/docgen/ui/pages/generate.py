@@ -151,6 +151,7 @@ class GeneratePage(QWidget):
         state.profile_edited.connect(self.refresh)
         state.workbook_changed.connect(lambda: self.excel.set_path(state.excel_path))
         state.run_requested.connect(self.run_now)
+        state.profile_changed.connect(self._files_from_history)
         self._form = form
         state.settings_changed.connect(self._apply_mode)
         self._apply_mode()
@@ -267,6 +268,19 @@ class GeneratePage(QWidget):
             combined=self.combined.isChecked(),
         )
 
+    def _files_from_history(self) -> None:
+        """A saved set opens with the Excel file and output folder used last time."""
+        p = self.state.profile
+        last = self.state.db.last_job(p.profile.id) if p else None
+        excel = Path(last.excel_file) if last and last.excel_file else None
+        out = Path(last.output_dir) if last and last.output_dir else None
+        self.excel.edit.setText(str(excel) if excel and excel.exists() else "")
+        if out and out.parent.exists():
+            self.output.edit.setText(str(out))
+        else:
+            self.output.edit.setText(self.state.settings.default_output_dir or "")
+        self.state.excel_path = excel if excel and excel.exists() else None
+
     def _apply_mode(self) -> None:
         """Simple mode: only what a first-time user needs; problems first, notes hidden."""
         advanced = self.state.settings.advanced_mode
@@ -304,6 +318,7 @@ class GeneratePage(QWidget):
             service.run,
             request,
             with_reporter=True,
+            owner=self,
             on_done=lambda r: self._done(r, request),
             on_error=self._failed,
             on_progress=self._progress,

@@ -114,6 +114,7 @@ class PreviewPage(QWidget):
             excel,
             rows=rows,
             limit=5,
+            owner=self,
             on_done=self._show,
             on_error=lambda m, d: (self.status.setText(m), error(self, m, d)),
         )

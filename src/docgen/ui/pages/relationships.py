@@ -279,6 +279,7 @@ class RelationshipsPage(QWidget):
             excel,
             limit=0,
             with_plan=False,
+            owner=self,
             on_done=done,
             on_error=lambda m, d: error(self, m, d),
         )

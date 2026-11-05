@@ -266,6 +266,7 @@ class TemplatesPage(QWidget):
             snapshot,
             folder,
             spec.model_copy(deep=True),
+            owner=self,
             on_done=lambda r: self._show_scan(spec, r),
             on_error=lambda m, d: error(self, m, d),
         )

@@ -297,3 +297,27 @@ def test_simple_mode_hides_setup_pages_and_example_runs(qtbot, tmp_path, monkeyp
         home.profiles.count() == 1
         and home.profiles.item(0).text() == "Hồ sơ nghiệm thu công việc xây dựng (mẫu)"
     )
+
+
+def test_saved_set_reopens_with_its_excel_file_and_folder(qtbot, tmp_path, monkeypatch):
+    """Next time: open the saved set, everything is filled in, one click to generate."""
+    monkeypatch.setattr("docgen.ui.pages.dashboard.documents_folder", lambda: tmp_path / "Documents" / "DocGen")
+    set_language("vi")
+    state = AppState(tmp_path / "home")
+    win = MainWindow(state)
+    qtbot.addWidget(win)
+    win.show()
+    home, generate = win.pages["dashboard"], win.pages["generate"]
+    home.try_sample()
+    qtbot.waitUntil(lambda: generate.result is not None and generate.worker is None, timeout=120000)
+    excel, out = generate.excel.path(), generate.output.path()
+    # another day: the app starts again, the user picks the set on the home page
+    state2 = AppState(tmp_path / "home")
+    win2 = MainWindow(state2)
+    qtbot.addWidget(win2)
+    win2.show()
+    win2.pages["dashboard"].refresh()
+    win2.pages["dashboard"]._open_selected()
+    generate2 = win2.pages["generate"]
+    assert win2.nav.currentItem().data(Qt.ItemDataRole.UserRole) == "generate"
+    assert generate2.excel.path() == excel and generate2.output.path() == out

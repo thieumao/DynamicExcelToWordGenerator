@@ -258,7 +258,9 @@ class QuickStartPage(QWidget):
 
     def _run(self, fn: Any, *args: Any, on_done: Any, message: str) -> None:
         self.busy.setText(message)
-        self.worker = run_in_background(fn, *args, on_done=self._done(on_done), on_error=self._failed)
+        self.worker = run_in_background(
+            fn, *args, on_done=self._done(on_done), on_error=self._failed, owner=self
+        )
         self._update_nav()
 
     def _done(self, callback: Any) -> Any:

@@ -139,6 +139,7 @@ class ExcelPage(QWidget):
         run_in_background(
             inspect_workbook,
             path,
+            owner=self,
             on_done=lambda s: self.state.set_workbook(path, s),
             on_error=lambda msg, det: (self.status.setText(msg), error(self, msg, det)),
         )

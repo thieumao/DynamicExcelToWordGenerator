@@ -12,6 +12,7 @@ import traceback
 from collections.abc import Callable
 from typing import Any
 
+import shiboken6
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
 from docgen.application.generation.job import CancellationToken
@@ -89,10 +90,31 @@ def run_in_background(
     on_stage: Callable[[str], None] | None = None,
     on_issue: Callable[[Issue], None] | None = None,
     with_reporter: bool = False,
+    owner: QObject | None = None,
     **kwargs: Any,
 ) -> Worker:
+    """Run *fn* on the thread pool; callbacks run on the GUI thread.
+
+    Callbacks are skipped once *owner* (the page that started the work) has been destroyed, e.g.
+    when the window is closed while a scan is still running.
+    """
     worker = Worker(fn, *args, with_reporter=with_reporter, **kwargs)
     _ACTIVE.add(worker)
+
+    def guard(callback: Callable[..., None]) -> Callable[..., None]:
+        if owner is None:
+            return callback
+
+        def call(*values: Any) -> None:
+            if shiboken6.isValid(owner):
+                callback(*values)
+
+        return call
+
+    on_done, on_error = (guard(on_done) if on_done else None), (guard(on_error) if on_error else None)
+    on_progress = guard(on_progress) if on_progress else None
+    on_stage = guard(on_stage) if on_stage else None
+    on_issue = guard(on_issue) if on_issue else None
 
     def _cleanup(*_: Any) -> None:
         _ACTIVE.discard(worker)

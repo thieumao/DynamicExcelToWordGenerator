@@ -95,6 +95,16 @@ class AppDatabase:
             rows = con.execute("SELECT * FROM jobs ORDER BY started DESC LIMIT ?", (limit,)).fetchall()
         return [JobRow(*row) for row in rows]
 
+    def last_job(self, profile_id: str) -> JobRow | None:
+        """The latest real run of a profile (not a dry run), for its Excel file and output folder."""
+        with closing(self._connect()) as con:
+            row = con.execute(
+                "SELECT * FROM jobs WHERE profile_id = ? AND excel_file IS NOT NULL "
+                "AND status != 'validated' ORDER BY started DESC LIMIT 1",
+                (profile_id,),
+            ).fetchone()
+        return JobRow(*row) if row else None
+
     def touch_recent(self, kind: str, value: str, keep: int = 15) -> None:
         with closing(self._connect()) as con, con:
             con.execute(
