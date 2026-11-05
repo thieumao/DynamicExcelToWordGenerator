@@ -21,3 +21,5 @@ tests/fixtures/real/
 tools/ooxml-validator/bin/
 tools/ooxml-validator/obj/
 handoff/
+dist-installer/
+packaging/Vietnamese.isl
