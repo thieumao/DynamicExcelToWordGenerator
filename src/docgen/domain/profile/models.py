@@ -607,6 +607,11 @@ class OutputConfig(_Model):
     on_conflict: ConflictPolicy = ConflictPolicy.SUFFIX
     max_path_length: int = Field(default=240, ge=60, le=32000)
     write_audit: bool = True
+    combined_filename: str | None = Field(
+        default=None,
+        description="also merge every generated document, in order, into this one file to print; "
+        "'{profile.name}' is replaced by the profile name",
+    )
 
 
 # ------------------------------------------------------------------- profile

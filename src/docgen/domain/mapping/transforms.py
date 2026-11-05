@@ -242,6 +242,26 @@ def _format_date(v: Any, ctx: TransformContext, format: str | None = None) -> st
     return date_value.strftime(format or ctx.date_format)
 
 
+def _to_time(v: Any) -> dt.time:
+    if isinstance(v, dt.datetime):
+        return v.time()
+    if isinstance(v, dt.time):
+        return v
+    if isinstance(v, (int, float, Decimal)) and 0 <= float(v) < 1:  # Excel stores times as day fractions
+        minutes = round(float(v) * 24 * 60)
+        return dt.time(minutes // 60 % 24, minutes % 60)
+    text = V.to_text(v).strip().lower().replace("giờ", ":").replace("h", ":").replace(" ", "")
+    match = re.fullmatch(r"(\d{1,2})(?::(\d{1,2})?)?(?::\d{1,2})?", text)
+    if not match:
+        raise V.ConversionError(f"'{V.to_text(v)}' is not a time")
+    return dt.time(int(match.group(1)) % 24, int(match.group(2) or 0))
+
+
+def _format_time(v: Any, ctx: TransformContext, format: str = "%H:%M") -> str:
+    """Excel times (or '8h30', '8:30') as text, e.g. format '%H giờ %M' -> '08 giờ 30'."""
+    return _to_time(v).strftime(format)
+
+
 def _format_datetime(v: Any, ctx: TransformContext, format: str | None = None) -> str:
     value = V.to_datetime(v)
     return value.strftime(format or ctx.datetime_format)
@@ -457,6 +477,13 @@ def build_default_registry() -> TransformRegistry:
         TransformDef("to_date", _to_date, "Parse a date", {"format": _P("str")}, category="type"),
         TransformDef("to_bool", _to_bool, "Parse yes/no", category="type"),
         TransformDef("format_date", _format_date, "Format a date", {"format": _P("str")}, category="format"),
+        TransformDef(
+            "format_time",
+            _format_time,
+            "Format a time",
+            {"format": _P("str", default="%H:%M")},
+            category="format",
+        ),
         TransformDef(
             "format_datetime",
             _format_datetime,

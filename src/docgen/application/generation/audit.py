@@ -39,6 +39,7 @@ def audit_dict(result: JobResult) -> dict[str, Any]:
         },
         "documents_generated": len(result.documents),
         "outputs": result.documents,
+        "combined_output": result.combined_path,
         "errors": sum(1 for i in issues if i.severity is Severity.ERROR),
         "warnings": sum(1 for i in issues if i.severity is Severity.WARNING),
         "stage_seconds": {k: round(v, 3) for k, v in result.stage_seconds.items()},

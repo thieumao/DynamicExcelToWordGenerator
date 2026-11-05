@@ -67,6 +67,10 @@ from docgen.infrastructure.fs.atomic import (
 )
 from docgen.infrastructure.fs.safety import UnsafeFileError
 from docgen.infrastructure.word.markers import leftover_patterns
+from docgen.infrastructure.word.merger import MergePart, WordMergeEngine
+from docgen.infrastructure.word.verifier import verify_docx
+
+DEFAULT_COMBINED_NAME = "Tổng hợp - {profile.name}.docx"
 
 FATAL_CATEGORIES = {
     Category.CONFIG,
@@ -211,6 +215,8 @@ class DocumentGenerationService:
                 return result
             timer("generate")
             self._execute(session, result, reporter, cancel, temp_dir, policy)
+            if not cancel.cancelled:
+                self._combine(session, result, reporter, temp_dir)
             if cancel.cancelled:
                 result.status = "cancelled"
             elif any(u.status == STATUS_ERROR for u in result.units):
@@ -734,6 +740,51 @@ class DocumentGenerationService:
                 outcome = outcomes[unit.index]
                 if unit.index not in processed and outcome.status == STATUS_OK:
                     outcome.status = STATUS_CANCELLED if cancel.cancelled else STATUS_SKIPPED
+
+    def _combine(
+        self, session: JobSession, result: JobResult, reporter: ProgressReporter, temp_dir: Path
+    ) -> None:
+        """Merge every generated document, in unit order, into one file to print."""
+        profile, request = session.profile, session.request
+        pattern = profile.output.combined_filename
+        if request.combined is False or (request.combined is None and not pattern):
+            return
+        merged_units = session.output_kind in (OutputKind.MERGED, OutputKind.BOTH) and profile.merge.enabled
+        paths: list[Path] = []
+        for unit in sorted(result.units, key=lambda u: u.index):
+            if unit.status in (STATUS_OK, STATUS_WARNING) and unit.outputs:
+                paths += [Path(unit.outputs[0])] if merged_units else [Path(p) for p in unit.outputs]
+        if not paths:
+            return
+        reporter.stage("combine")
+        title = (pattern or DEFAULT_COMBINED_NAME).replace("{profile.name}", profile.profile.name)
+        name = sanitize_component(title)
+        temp = temp_dir / "combined.docx"
+        try:
+            parts = [MergePart(paths[0])] + [
+                MergePart(p, section_mode="preserve", break_before="section") for p in paths[1:]
+            ]
+            WordMergeEngine().merge(parts, temp)
+            check = verify_docx(temp)
+            if not check.ok:
+                raise ValueError("; ".join(check.problems[:3]))
+            fin = finalize(temp, request.output_dir / name, profile.output.on_conflict)
+        except (OSError, ValueError, OutputConflictError, OutputLockedError) as exc:
+            result.issues.append(
+                make_issue(
+                    "output.combined_failed",
+                    Severity.WARNING,
+                    Category.OUTPUT,
+                    f"The combined file {name} could not be created: {exc}",
+                    suggestion="The separate documents were created; close the combined file if it "
+                    "is open in Word and run again.",
+                    name=name,
+                    detail=str(exc),
+                )
+            )
+            return
+        if fin.path is not None:
+            result.combined_path = str(fin.path)
 
     def _finalize_outputs(
         self,

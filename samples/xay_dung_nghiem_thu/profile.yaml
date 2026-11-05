@@ -1,0 +1,96 @@
+schema_version: 1
+profile:
+  id: ho_so_nghiem_thu
+  name: "Hồ sơ nghiệm thu công việc xây dựng (mẫu)"
+  version: 1
+  description: >
+    Mỗi dòng của sheet 'Danh mục nghiệm thu' tạo một file Word gồm Phiếu yêu cầu nghiệm thu
+    và Biên bản nghiệm thu công việc xây dựng. Thông tin công trình chỉ nhập một lần.
+excel:
+  primary: dm
+  sheets:
+    - id: dm
+      match: {name: "Danh mục nghiệm thu"}
+      columns:
+        - {id: stt, header: "STT"}
+        - {id: so_bien_ban, header: "Số biên bản", type: string}
+        - {id: ten_cong_viec, header: "Tên công việc"}
+        - {id: vi_tri, header: "Vị trí"}
+        - {id: ban_ve_so, header: "Bản vẽ số", required: false}
+        - {id: tieu_chuan, header: "Tiêu chuẩn áp dụng", required: false}
+        - {id: ngay_nghiem_thu, header: "Ngày nghiệm thu", type: date}
+        - {id: gio_bat_dau, header: "Giờ bắt đầu"}
+        - {id: gio_ket_thuc, header: "Giờ kết thúc"}
+        - {id: ma_giam_sat, header: "Mã giám sát", type: string}
+        - {id: ma_ky_thuat, header: "Mã kỹ thuật", type: string}
+        - {id: ket_qua, header: "Kết quả", required: false}
+    - id: ct
+      match: {name: "Thông tin công trình"}
+      layout: key_value
+      columns:
+        - {id: ten_cong_trinh, header: "Tên công trình"}
+        - {id: hang_muc, header: "Hạng mục", required: false}
+        - {id: dia_diem, header: "Địa điểm xây dựng"}
+        - {id: chu_dau_tu, header: "Chủ đầu tư"}
+        - {id: tu_van_giam_sat, header: "Đơn vị tư vấn giám sát"}
+        - {id: nha_thau, header: "Nhà thầu thi công"}
+        - {id: hop_dong, header: "Hợp đồng thi công số", required: false}
+        - {id: noi_lap, header: "Nơi lập biên bản", required: false}
+    - id: ns
+      match: {name: "Nhân sự"}
+      columns:
+        - {id: ma, header: "Mã", type: string}
+        - {id: ho_ten, header: "Họ và tên"}
+        - {id: chuc_vu, header: "Chức vụ"}
+relationships:
+  - {id: r_ct, from: dm, to: ct}   # every row uses the project details
+  - {id: gs, from: dm, to: ns, keys: [{from: ma_giam_sat, to: ma}]}
+  - {id: kt, from: dm, to: ns, keys: [{from: ma_ky_thuat, to: ma}]}
+fields:
+  # project details (sheet 'Thông tin công trình')
+  - {name: cong_trinh.ten_cong_trinh, path: r_ct.ten_cong_trinh}
+  - {name: cong_trinh.hang_muc, path: r_ct.hang_muc, default: ""}
+  - {name: cong_trinh.dia_diem_xay_dung, path: r_ct.dia_diem}
+  - {name: cong_trinh.chu_dau_tu, path: r_ct.chu_dau_tu}
+  - {name: cong_trinh.don_vi_tu_van_giam_sat, path: r_ct.tu_van_giam_sat}
+  - {name: cong_trinh.nha_thau_thi_cong, path: r_ct.nha_thau}
+  - {name: cong_trinh.hop_dong_thi_cong_so, path: r_ct.hop_dong, default: "……"}
+  - {name: cong_trinh.noi_lap_bien_ban, path: r_ct.noi_lap, default: "……"}
+  # the work item (sheet 'Danh mục nghiệm thu')
+  - {name: nghiem_thu.stt, source: stt}
+  - {name: nghiem_thu.so_bien_ban, source: so_bien_ban}
+  - {name: nghiem_thu.ten_cong_viec, source: ten_cong_viec}
+  - {name: nghiem_thu.vi_tri, source: vi_tri}
+  - {name: nghiem_thu.ban_ve_so, source: ban_ve_so, default: "……"}
+  - {name: nghiem_thu.tieu_chuan_ap_dung, source: tieu_chuan, default: "……"}
+  - {name: nghiem_thu.ket_qua, source: ket_qua, default: "Đạt"}
+  - {name: nghiem_thu.ngay_nghiem_thu, source: ngay_nghiem_thu, transforms: [format_date]}
+  - name: nghiem_thu.ngay_nghiem_thu_bang_chu
+    source: ngay_nghiem_thu
+    transforms: [{format_date: {format: "ngày %d tháng %m năm %Y"}}]
+  - name: nghiem_thu.ngay_yeu_cau_bang_chu
+    source: ngay_nghiem_thu
+    transforms: [{add_days: {days: -1}}, {format_date: {format: "ngày %d tháng %m năm %Y"}}]
+  - {name: nghiem_thu.gio_bat_dau, source: gio_bat_dau, transforms: [{format_time: {format: "%H giờ %M"}}]}
+  - {name: nghiem_thu.gio_ket_thuc, source: gio_ket_thuc, transforms: [{format_time: {format: "%H giờ %M"}}]}
+  # people (sheet 'Nhân sự', found by their code)
+  - {name: nghiem_thu.ho_ten_giam_sat, path: gs.ho_ten}
+  - {name: nghiem_thu.chuc_vu_giam_sat, path: gs.chuc_vu}
+  - {name: nghiem_thu.ho_ten_ky_thuat, path: kt.ho_ten}
+  - {name: nghiem_thu.chuc_vu_ky_thuat, path: kt.chuc_vu}
+templates:
+  - id: phieu_yeu_cau
+    file: templates/PhieuYeuCauNghiemThu.docx
+    marker: {style: custom, open: "<<", close: ">>"}
+  - id: bien_ban
+    file: templates/BienBanNghiemThu.docx
+    marker: {style: custom, open: "<<", close: ">>"}
+merge:
+  order: [phieu_yeu_cau, bien_ban]
+generation:
+  unit: record
+  output: merged
+output:
+  merged_filename: "{nghiem_thu.stt} - {nghiem_thu.ten_cong_viec}.docx"
+  individual_filename: "{template.id} - {nghiem_thu.stt}.docx"
+  combined_filename: "Tổng hợp hồ sơ nghiệm thu.docx"   # every document in one file, to print

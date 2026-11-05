@@ -99,7 +99,23 @@ def main() -> int:
     forms = sorted((work / "out_c").rglob("*.docx"))
     assert len(forms) == 2, f"expected 2 forms, got {len(forms)}"
     run([cli, "templates", "scan", str(c / "templates" / "PhieuThongTin.docx")])
-    validate_outputs([work / "out_a", work / "out_b", work / "out_c"], work)
+    # construction kit: one file per work item + one combined file to print
+    x = work / "samples" / "xay_dung_nghiem_thu"
+    run(
+        [
+            cli,
+            "generate",
+            "--profile",
+            str(x / "profile.yaml"),
+            "--excel",
+            str(x / "data" / "HoSoNghiemThu.xlsx"),
+            "--out",
+            str(work / "out_xd"),
+        ]
+    )
+    produced = sorted(p.name for p in (work / "out_xd").glob("*.docx"))
+    assert len(produced) == 7 and "Tổng hợp hồ sơ nghiệm thu.docx" in produced, produced
+    validate_outputs([work / "out_a", work / "out_b", work / "out_c", work / "out_xd"], work)
     env = dict(
         os.environ,
         QT_QPA_PLATFORM=os.environ.get("QT_QPA_PLATFORM", "offscreen"),

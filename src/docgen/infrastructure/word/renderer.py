@@ -60,6 +60,8 @@ def _finalizer(tctx: TransformContext) -> Any:
             return value.strftime(tctx.datetime_format)
         if isinstance(value, dt.date):
             return value.strftime(tctx.date_format)
+        if isinstance(value, dt.time):
+            return value.strftime("%H:%M")
         if isinstance(value, Decimal):
             decimals = max(0, -value.normalize().as_tuple().exponent)  # type: ignore[operator]
             return format_decimal(value, min(decimals, 6), tctx.decimal_separator, "")

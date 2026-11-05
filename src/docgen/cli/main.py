@@ -207,6 +207,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         workers=args.workers,
         error_policy=ErrorPolicy.FAIL_FAST if args.fail_fast else None,
         dry_run=args.dry_run,
+        combined=args.combined,
     )
     cancel = CancellationToken()
     try:
@@ -224,21 +225,26 @@ def cmd_generate(args: argparse.Namespace) -> int:
         if unit.status in ("error", "cancelled", "skipped") or args.verbose:
             print(f"  unit {unit.index} {unit.label}: {unit.status}")
             _print_issues(unit.issues, min_severity=Severity.WARNING, limit=10)
+    if result.combined_path:
+        print(f"Combined: {result.combined_path}")
     if result.audit_path:
         print(f"Audit: {result.audit_path}")
     return 0 if result.status in ("completed", "validated") else 1
 
 
 def cmd_samples(args: argparse.Namespace) -> int:
+    from docgen.testing.construction import write_construction_kit
     from docgen.testing.samples import write_customer_a, write_customer_b, write_customer_c
 
     out = Path(args.directory)
     a = write_customer_a(out / "customer_a", n_employees=args.employees)
     b = write_customer_b(out / "customer_b")
     c = write_customer_c(out / "customer_c")
+    x = write_construction_kit(out / "xay_dung_nghiem_thu")
     print(f"customer_a: {a[0]}  {a[1]}")
     print(f"customer_b: {b[0]}  {b[1]}")
     print(f"customer_c: {c[0]}  {c[1]}")
+    print(f"xay_dung_nghiem_thu: {x[0]}  {x[1]}")
     return 0
 
 
@@ -291,6 +297,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--workers", type=int)
     p.add_argument("--fail-fast", action="store_true")
     p.add_argument("--dry-run", action="store_true", help="validate and plan only")
+    p.add_argument(
+        "--combined",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="also write one file with every document, to print (default: profile output.combined_filename)",
+    )
     p.add_argument("--quiet", action="store_true")
     p.add_argument("--verbose", action="store_true")
     p.set_defaults(func=cmd_generate)

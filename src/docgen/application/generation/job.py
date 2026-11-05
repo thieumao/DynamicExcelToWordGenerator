@@ -67,6 +67,8 @@ class GenerationRequest:
     error_policy: ErrorPolicy | None = None
     dry_run: bool = False
     header_overrides: dict[str, int] = field(default_factory=dict)
+    combined: bool | None = None
+    """One extra file with every generated document, to print (None = output.combined_filename)."""
 
 
 STATUS_OK = "ok"
@@ -121,6 +123,8 @@ class JobResult:
     issues: list[Issue] = field(default_factory=list)
     audit_path: str = ""
     report_path: str = ""
+    combined_path: str = ""
+    """The single file with every document of the job, when requested."""
     stage_seconds: dict[str, float] = field(default_factory=dict)
 
     @property
