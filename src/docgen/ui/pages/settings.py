@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QComboBox, QFormLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from docgen import __version__
 from docgen.i18n.catalog import SUPPORTED, tr
@@ -34,6 +34,13 @@ class SettingsPage(QWidget):
         self.workers.setSpecialValueText(tr("automatic"))
         self.workers.setValue(s.workers)
         form.addRow(tr("Parallel workers"), self.workers)
+        self.advanced = QCheckBox(
+            tr(
+                "Advanced mode: show the detailed setup pages (Excel, lookups, mapping, Word templates, preview)"
+            )
+        )
+        self.advanced.setChecked(s.advanced_mode)
+        form.addRow("", self.advanced)
         layout.addLayout(form)
         save = button(tr("Save settings"), primary=True)
         save.clicked.connect(self._save)
@@ -58,7 +65,9 @@ class SettingsPage(QWidget):
         out = self.output.path()
         s.default_output_dir = str(out) if out else ""
         s.workers = self.workers.value()
+        s.advanced_mode = self.advanced.isChecked()
         self.state.save_settings()
+        self.state.settings_changed.emit()
         info(
             self,
             tr("Settings saved.")

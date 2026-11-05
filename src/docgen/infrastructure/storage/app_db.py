@@ -124,6 +124,8 @@ class Settings:
     """0 = automatic."""
     log_level: str = "INFO"
     log_cell_values: bool = False
+    advanced_mode: bool = False
+    """Show the detailed configuration pages (Excel, lookups, mapping, Word templates, preview)."""
 
     @classmethod
     def load(cls, path: Path) -> Settings:

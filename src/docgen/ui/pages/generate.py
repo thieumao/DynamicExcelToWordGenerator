@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
 from docgen.application.generation.job import GenerationRequest, JobResult
 from docgen.application.generation.service import DocumentGenerationService
 from docgen.cli.main import parse_rows
-from docgen.domain.diagnostics import Issue
+from docgen.domain.diagnostics import Issue, Severity
 from docgen.domain.profile.models import ErrorPolicy, OutputKind, UnitKind
 from docgen.i18n.catalog import tr
 from docgen.ui.state import AppState
@@ -151,6 +151,9 @@ class GeneratePage(QWidget):
         state.profile_edited.connect(self.refresh)
         state.workbook_changed.connect(lambda: self.excel.set_path(state.excel_path))
         state.run_requested.connect(self.run_now)
+        self._form = form
+        state.settings_changed.connect(self._apply_mode)
+        self._apply_mode()
         self.refresh()
 
     def refresh(self) -> None:
@@ -168,7 +171,9 @@ class GeneratePage(QWidget):
         if p:
             self.combined.setChecked(bool(p.output.combined_filename))
             for t in p.ordered_templates():
-                item = QListWidgetItem(t.id)
+                item = QListWidgetItem(Path(t.file).name)  # what the user knows: the Word file
+                item.setData(Qt.ItemDataRole.UserRole, t.id)
+                item.setToolTip(t.id)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 item.setCheckState(Qt.CheckState.Checked if t.enabled else Qt.CheckState.Unchecked)
                 self.templates.addItem(item)
@@ -243,7 +248,7 @@ class GeneratePage(QWidget):
         if self.both.isChecked():
             output = OutputKind.BOTH
         templates = [
-            self.templates.item(i).text()
+            self.templates.item(i).data(Qt.ItemDataRole.UserRole)
             for i in range(self.templates.count())
             if self.templates.item(i).checkState() == Qt.CheckState.Checked
         ]
@@ -261,6 +266,18 @@ class GeneratePage(QWidget):
             dry_run=dry_run,
             combined=self.combined.isChecked(),
         )
+
+    def _apply_mode(self) -> None:
+        """Simple mode: only what a first-time user needs; problems first, notes hidden."""
+        advanced = self.state.settings.advanced_mode
+        for widget in (self.mode, self.group_note, self.both, self.fail_fast, self.workers):
+            self._form.setRowVisible(widget, advanced)
+        if not advanced:
+            self.mode.setCurrentIndex(0)
+            self.both.setChecked(False)
+            self.fail_fast.setChecked(False)
+        index = self.issues.severity.findData((Severity.INFO if advanced else Severity.WARNING).value)
+        self.issues.severity.setCurrentIndex(max(0, index))
 
     def run_now(self, excel: str, output: str) -> None:
         """Generate right away (the quick start wizard and the sample use this)."""

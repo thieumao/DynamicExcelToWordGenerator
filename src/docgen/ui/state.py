@@ -23,6 +23,7 @@ class AppState(QObject):
     issues_published = Signal(str, list)
     """(source label, list[Issue]) for the Logs page."""
     navigate = Signal(str)
+    settings_changed = Signal()
     run_requested = Signal(str, str)
     """(Excel file, output folder): generate the current profile's documents now."""
 

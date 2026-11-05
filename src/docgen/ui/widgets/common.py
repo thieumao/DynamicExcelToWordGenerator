@@ -114,6 +114,11 @@ SEVERITY_COLORS = {
 }
 
 
+def _category(value: str) -> str:
+    label = tr(f"category:{value}")
+    return value if label.startswith("category:") else label
+
+
 class IssueTableModel(QAbstractTableModel):
     COLUMNS = (
         "Severity",
@@ -164,7 +169,7 @@ class IssueTableModel(QAbstractTableModel):
         message, suggestion = issue_text(issue)
         return [
             tr(issue.severity.value),
-            issue.category.value,
+            _category(issue.category.value),
             message,
             issue.sheet or "",
             "" if issue.row is None else str(issue.row),
@@ -258,9 +263,15 @@ class IssueView(QWidget):
         self._update_summary()
 
     def _apply(self) -> None:
-        self.proxy.min_severity = self.severity.currentData()
+        begin = getattr(self.proxy, "beginFilterChange", None)  # Qt >= 6.10
+        if begin is not None:
+            begin()
+        self.proxy.min_severity = Severity(self.severity.currentData())  # Qt returns the text
         self.proxy.text = self.search.text().strip()
-        self.proxy.invalidateFilter()
+        if begin is not None:
+            self.proxy.endFilterChange()
+        else:
+            self.proxy.invalidateFilter()
         self._update_summary()
 
     def _update_summary(self) -> None:

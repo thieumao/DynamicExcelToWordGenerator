@@ -161,6 +161,9 @@ class ProfilesPage(QWidget):
         self._update_label()
 
     def _new(self) -> None:
+        if not self.state.settings.advanced_mode:
+            self.state.navigate.emit("quickstart")  # beginners: Excel + Word -> ready profile
+            return
         answer = ask_profile_id(self, tr("New profile"))
         if not answer:
             return
@@ -186,6 +189,9 @@ class ProfilesPage(QWidget):
             self.state.open_profile(pid)
         except (ProfileLoadError, OSError) as exc:
             error(self, tr("Cannot open profile: {err}", err=exc))
+            return
+        if not self.state.settings.advanced_mode:
+            self.state.navigate.emit("generate")
 
     def _duplicate(self) -> None:
         pid = self._selected_id()

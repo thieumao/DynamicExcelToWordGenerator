@@ -19,6 +19,7 @@ from docgen.domain.mapping.expressions import ExpressionError
 from docgen.domain.mapping.lookup import _sortable
 from docgen.domain.profile.models import SortKey, UnitKind
 from docgen.domain.validation.engine import ValidationEngine
+from docgen.i18n.catalog import tr
 
 
 @dataclass(slots=True)
@@ -142,7 +143,7 @@ def plan_units(
                 PlannedUnit(
                     len(units) + 1,
                     (excel_row,),
-                    f"{table.sheet_name} row {excel_row}",
+                    tr("{sheet} row {row}", sheet=table.sheet_name, row=excel_row),
                     [ri],
                     [excel_row],
                     record_issues.get(ri, []),
@@ -155,7 +156,7 @@ def plan_units(
             PlannedUnit(
                 1,
                 (),
-                f"All records ({len(all_rows)})",
+                tr("All records ({n})", n=len(all_rows)),
                 all_rows,
                 [table.row_numbers[r] for r in all_rows],
                 all_issues,

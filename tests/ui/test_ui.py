@@ -167,7 +167,7 @@ def test_cancel_from_ui(window, qtbot):
 def test_vietnamese_catalog_is_complete_for_ui():
     set_language("vi")
     try:
-        assert tr("Generate") == "Sinh tài liệu"
+        assert tr("Generate") == "Tạo tài liệu"
         assert tr("{errors} error(s), {warnings} warning(s)", errors=1, warnings=2) == "1 lỗi, 2 cảnh báo"
     finally:
         set_language("en")
@@ -246,3 +246,54 @@ def test_quick_start_wizard_from_excel_and_word_to_documents(qtbot, tmp_path):
     assert len(generate.result.documents) == 6 and generate.result.combined_path
     assert state.profile is not None and state.repo.exists(state.profile.profile.id)
     assert win.nav.currentItem().data(Qt.ItemDataRole.UserRole) == "generate"
+
+
+def test_simple_mode_hides_setup_pages_and_example_runs(qtbot, tmp_path, monkeypatch):
+    from docgen.ui.main_window import ADVANCED_PAGES
+
+    monkeypatch.setattr(
+        "docgen.ui.pages.dashboard.documents_folder", lambda: tmp_path / "Documents" / "DocGen"
+    )
+    set_language("vi")
+    state = AppState(tmp_path / "home")
+    win = MainWindow(state)
+    qtbot.addWidget(win)
+    win.show()
+    visible = {
+        win.nav.item(i).data(Qt.ItemDataRole.UserRole)
+        for i in range(win.nav.count())
+        if not win.nav.item(i).isHidden()
+    }
+    assert visible == {"dashboard", "quickstart", "profiles", "generate", "logs", "settings"}
+    state.settings.advanced_mode = True
+    state.settings_changed.emit()
+    assert all(not win.nav.item(i).isHidden() for i in range(win.nav.count()))
+    state.settings.advanced_mode = False
+    state.settings_changed.emit()
+    assert {
+        win.nav.item(i).data(Qt.ItemDataRole.UserRole)
+        for i in range(win.nav.count())
+        if win.nav.item(i).isHidden()
+    } >= ADVANCED_PAGES
+
+    home = win.pages["dashboard"]
+    home.try_sample()  # "Dùng thử hồ sơ mẫu"
+    folder = tmp_path / "Documents" / "DocGen" / "Mẫu - Hồ sơ nghiệm thu"
+    assert (folder / "data" / "HoSoNghiemThu.xlsx").exists() and (folder / "templates").is_dir()
+    generate = win.pages["generate"]
+    qtbot.waitUntil(lambda: generate.result is not None and generate.worker is None, timeout=120000)
+    assert generate.result.status == "completed", [str(i) for i in generate.result.all_issues()]
+    assert len(list((folder / "Kết quả").glob("*.docx"))) == 7  # 6 work items + the combined file
+    assert "Tổng hợp hồ sơ nghiệm thu.docx" in generate.stage.text()
+    # the user's edits to the example Excel file survive a second click
+    excel = folder / "data" / "HoSoNghiemThu.xlsx"
+    excel.write_bytes(excel.read_bytes() + b"")
+    stamp = excel.stat().st_mtime_ns
+    from docgen.application.starter import install_construction_kit
+
+    install_construction_kit(state.repo, folder)
+    assert excel.stat().st_mtime_ns == stamp
+    assert (
+        home.profiles.count() == 1
+        and home.profiles.item(0).text() == "Hồ sơ nghiệm thu công việc xây dựng (mẫu)"
+    )

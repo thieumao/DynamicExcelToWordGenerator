@@ -54,6 +54,9 @@ QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
 QTableView, QTableWidget, QTreeWidget, QListWidget { border: 1px solid #e5e7eb; border-radius: 6px; }
 QProgressBar { border: 1px solid #d1d5db; border-radius: 6px; text-align: center; height: 18px; }
 QProgressBar::chunk { background: #2563eb; border-radius: 6px; }
+QPushButton#Card { text-align: left; padding: 14px 16px; font-size: 11pt; border: 1px solid #d1d5db;
+  border-radius: 10px; background: #ffffff; color: #111827; }
+QPushButton#Card:hover { border-color: #2563eb; background: #eff6ff; }
 """
 
 PAGES = [
@@ -69,6 +72,10 @@ PAGES = [
     ("logs", "Logs and errors", QStyle.StandardPixmap.SP_MessageBoxWarning),
     ("settings", "Settings", QStyle.StandardPixmap.SP_FileDialogDetailedView),
 ]
+
+
+ADVANCED_PAGES = {"excel", "relationships", "mapping", "templates", "preview"}
+"""Hidden in the simple mode (the default): beginners use the quick start and Generate pages."""
 
 
 class MainWindow(QMainWindow):
@@ -130,7 +137,9 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(container)
         self.nav.currentRowChanged.connect(self._switch)
         self.nav.setCurrentRow(0)
+        self._apply_mode()
         state.navigate.connect(self.go)
+        state.settings_changed.connect(self._apply_mode)
         state.profile_changed.connect(self._update_title)
         state.profile_edited.connect(self._update_title)
 
@@ -139,6 +148,12 @@ class MainWindow(QMainWindow):
         save.triggered.connect(self._save)
         self.addAction(save)
         self._update_title()
+
+    def _apply_mode(self) -> None:
+        advanced = self.state.settings.advanced_mode
+        for i in range(self.nav.count()):
+            item = self.nav.item(i)
+            item.setHidden(not advanced and item.data(Qt.ItemDataRole.UserRole) in ADVANCED_PAGES)
 
     def go(self, key: str) -> None:
         for i in range(self.nav.count()):
