@@ -31,6 +31,8 @@ jobs:
         run: uv run python packaging/make_icon.py packaging/docgen.ico
       - name: PyInstaller (onedir)
         run: uv run pyinstaller packaging/docgen.spec --noconfirm --clean
+      - name: Third-party notices
+        run: uv run python packaging/third_party_notices.py dist/DocGen/THIRD_PARTY_NOTICES.txt
       - name: Smoke test the built executables
         env:
           QT_QPA_PLATFORM: offscreen

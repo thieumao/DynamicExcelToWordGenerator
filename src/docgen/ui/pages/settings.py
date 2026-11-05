@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QComboBox, QFormLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
@@ -11,6 +14,14 @@ from docgen.i18n.catalog import SUPPORTED, tr
 from docgen.infrastructure.storage import paths
 from docgen.ui.state import AppState
 from docgen.ui.widgets.common import PathPicker, button, info, page_title
+
+
+def notices_file() -> Path | None:
+    """THIRD_PARTY_NOTICES.txt next to the installed program (packaged builds only)."""
+    if not getattr(sys, "frozen", False):
+        return None
+    path = Path(sys.executable).parent / "THIRD_PARTY_NOTICES.txt"
+    return path if path.exists() else None
 
 
 class SettingsPage(QWidget):
@@ -45,6 +56,11 @@ class SettingsPage(QWidget):
         save = button(tr("Save settings"), primary=True)
         save.clicked.connect(self._save)
         layout.addWidget(save)
+        notices = notices_file()
+        if notices is not None:
+            licenses = button(tr("Third-party licences"))
+            licenses.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(notices))))
+            layout.addWidget(licenses)
         data = button(tr("Open application data folder"))
         data.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(paths.data_dir()))))
         layout.addWidget(data)

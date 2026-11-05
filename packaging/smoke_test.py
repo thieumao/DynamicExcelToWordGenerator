@@ -47,6 +47,9 @@ def main() -> int:
     cli = str(dist / f"docgen-cli{exe_suffix}")
     gui = str(dist / f"DocGen{exe_suffix}")
     work = Path(tempfile.mkdtemp(prefix="docgen-smoke-"))
+    notices = dist / "THIRD_PARTY_NOTICES.txt"
+    text = notices.read_text(encoding="utf-8") if notices.exists() else ""
+    assert "PySide6" in text and "docxtpl" in text and "LGPL" in text, "THIRD_PARTY_NOTICES.txt missing"
     run([cli, "--version"])
     run([cli, "samples", str(work / "samples"), "--employees", "25"])
     a = work / "samples" / "customer_a"
