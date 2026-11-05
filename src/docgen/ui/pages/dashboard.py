@@ -69,6 +69,12 @@ class DashboardPage(QWidget):
         for c in (new, saved, sample):
             cards.addWidget(c)
         layout.addLayout(cards)
+        guide = button(tr("📖 How to use DocGen (user guide)"))
+        guide.clicked.connect(lambda: state.navigate.emit("help"))
+        guide_row = QHBoxLayout()
+        guide_row.addWidget(guide)
+        guide_row.addStretch(1)
+        layout.addLayout(guide_row)
         self.sample_hint = QLabel()
         self.sample_hint.setWordWrap(True)
         self.sample_hint.setObjectName("Hint")

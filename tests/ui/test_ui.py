@@ -264,7 +264,7 @@ def test_simple_mode_hides_setup_pages_and_example_runs(qtbot, tmp_path, monkeyp
         for i in range(win.nav.count())
         if not win.nav.item(i).isHidden()
     }
-    assert visible == {"dashboard", "quickstart", "profiles", "generate", "logs", "settings"}
+    assert visible == {"dashboard", "quickstart", "profiles", "generate", "logs", "help", "settings"}
     state.settings.advanced_mode = True
     state.settings_changed.emit()
     assert all(not win.nav.item(i).isHidden() for i in range(win.nav.count()))
@@ -301,7 +301,9 @@ def test_simple_mode_hides_setup_pages_and_example_runs(qtbot, tmp_path, monkeyp
 
 def test_saved_set_reopens_with_its_excel_file_and_folder(qtbot, tmp_path, monkeypatch):
     """Next time: open the saved set, everything is filled in, one click to generate."""
-    monkeypatch.setattr("docgen.ui.pages.dashboard.documents_folder", lambda: tmp_path / "Documents" / "DocGen")
+    monkeypatch.setattr(
+        "docgen.ui.pages.dashboard.documents_folder", lambda: tmp_path / "Documents" / "DocGen"
+    )
     set_language("vi")
     state = AppState(tmp_path / "home")
     win = MainWindow(state)
@@ -321,3 +323,15 @@ def test_saved_set_reopens_with_its_excel_file_and_folder(qtbot, tmp_path, monke
     generate2 = win2.pages["generate"]
     assert win2.nav.currentItem().data(Qt.ItemDataRole.UserRole) == "generate"
     assert generate2.excel.path() == excel and generate2.output.path() == out
+
+
+def test_user_guide_is_inside_the_app(qtbot, tmp_path):
+    set_language("vi")
+    state = AppState(tmp_path / "home")
+    win = MainWindow(state)
+    qtbot.addWidget(win)
+    win.show()
+    win.go("help")
+    text = win.pages["help"].browser.toPlainText()
+    assert "A1. Cài đặt" in text and "Dùng thử hồ sơ mẫu" in text
+    assert "|" not in text.split("A3. Chuẩn bị file Excel")[1][:400]  # tables are rendered, not raw

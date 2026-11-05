@@ -617,5 +617,8 @@
  "Saved document sets": "Bộ hồ sơ đã lưu",
  "Double-click to open the folder": "Bấm đúp để mở thư mục",
  "The example could not be created.": "Không tạo được hồ sơ mẫu.",
- "The example is in {folder}: open data/HoSoNghiemThu.xlsx to see how the data is entered, and the templates folder for the Word forms with <<…>> marks.": "Hồ sơ mẫu nằm trong {folder}: mở data/HoSoNghiemThu.xlsx để xem cách nhập dữ liệu, và thư mục templates để xem các mẫu Word có đánh dấu <<…>>."
+ "The example is in {folder}: open data/HoSoNghiemThu.xlsx to see how the data is entered, and the templates folder for the Word forms with <<…>> marks.": "Hồ sơ mẫu nằm trong {folder}: mở data/HoSoNghiemThu.xlsx để xem cách nhập dữ liệu, và thư mục templates để xem các mẫu Word có đánh dấu <<…>>.",
+ "User guide": "Hướng dẫn sử dụng",
+ "Step by step, for first-time users.": "Từng bước, dành cho người mới dùng.",
+ "📖 How to use DocGen (user guide)": "📖 Xem hướng dẫn sử dụng"
 }

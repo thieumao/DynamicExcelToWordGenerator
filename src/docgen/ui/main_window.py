@@ -22,6 +22,7 @@ from docgen.i18n.catalog import tr
 from docgen.ui.pages.dashboard import DashboardPage
 from docgen.ui.pages.excel import ExcelPage
 from docgen.ui.pages.generate import GeneratePage
+from docgen.ui.pages.help import HelpPage
 from docgen.ui.pages.logs import LogsPage
 from docgen.ui.pages.mapping import MappingPage
 from docgen.ui.pages.preview import PreviewPage
@@ -70,6 +71,7 @@ PAGES = [
     ("preview", "Preview", QStyle.StandardPixmap.SP_FileDialogInfoView),
     ("generate", "Generate", QStyle.StandardPixmap.SP_MediaPlay),
     ("logs", "Logs and errors", QStyle.StandardPixmap.SP_MessageBoxWarning),
+    ("help", "User guide", QStyle.StandardPixmap.SP_DialogHelpButton),
     ("settings", "Settings", QStyle.StandardPixmap.SP_FileDialogDetailedView),
 ]
 
@@ -124,6 +126,7 @@ class MainWindow(QMainWindow):
             "preview": PreviewPage(state),
             "generate": GeneratePage(state),
             "logs": LogsPage(state),
+            "help": HelpPage(state),
             "settings": SettingsPage(state),
         }
         for key, label, icon in PAGES:
